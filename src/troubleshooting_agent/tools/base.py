@@ -1,27 +1,28 @@
 """Tool registry: aggregates tools from all integrations."""
 
+from collections.abc import Sequence
+
 from langchain_core.tools import BaseTool
 
 from troubleshooting_agent.config import Settings
 from troubleshooting_agent.tools import builtin
-from troubleshooting_agent.tools.stubs import slack, splunk_mcp, splunk_o11y
 
 
-def get_tools(settings: Settings) -> list[BaseTool]:
+def get_tools(
+    settings: Settings,
+    *,
+    mcp_tools: Sequence[BaseTool] | None = None,
+) -> list[BaseTool]:
     """
     Collect all enabled tools for the agent.
 
-    Phase 0: builtin tools only.
-    Future: gated by settings.enable_* flags.
+    Built-in tools are always included. Splunk MCP tools are passed via
+    ``mcp_tools`` from McpSessionManager when ENABLE_SPLUNK_O11Y / ENABLE_SPLUNK_MCP
+    are set (see agent.runner).
     """
+    _ = settings
     tools: list[BaseTool] = []
     tools.extend(builtin.get_tools())
-
-    if settings.enable_splunk_o11y:
-        tools.extend(splunk_o11y.get_tools(settings))
-    if settings.enable_splunk_mcp:
-        tools.extend(splunk_mcp.get_tools(settings))
-    if settings.enable_slack:
-        tools.extend(slack.get_tools(settings))
-
+    if mcp_tools:
+        tools.extend(mcp_tools)
     return tools

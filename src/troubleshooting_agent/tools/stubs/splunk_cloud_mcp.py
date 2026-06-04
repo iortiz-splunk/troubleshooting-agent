@@ -1,8 +1,8 @@
 """
-Splunk Enterprise MCP integration (logs / search via Splunk MCP endpoint).
+Splunk Cloud MCP server integration (platform / logs).
 
-Tools are loaded at agent runtime through McpSessionManager (mcp-remote).
-Enable with ENABLE_SPLUNK_MCP=true and set SPLUNK_MCP_* env vars.
+Uses Authorization Bearer and splunk_tenant — not Observability-only auth.
+Enable with ENABLE_SPLUNK_CLOUD_MCP=true.
 """
 
 from langchain_core.tools import BaseTool
@@ -13,11 +13,11 @@ from troubleshooting_agent.mcp.bridge import create_langchain_tools_from_session
 
 
 def get_tools(_settings: Settings) -> list[BaseTool]:
-    """Sync registry hook — MCP Splunk tools are injected by McpSessionManager in runner."""
+    """Sync registry hook — tools are injected by McpSessionManager."""
     return []
 
 
 async def load_tools(session: ClientSession, settings: Settings) -> list[BaseTool]:
-    """Load all tools from the Splunk Enterprise MCP server."""
+    """Load Splunk Cloud MCP tools (no o11y_ prefix filter)."""
     _ = settings
     return await create_langchain_tools_from_session(session)

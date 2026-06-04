@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.0",
     "typer>=0.12",
     "httpx>=0.27",
+    "mcp>=1.0",
 ]
 
 [project.scripts]
@@ -48,11 +49,12 @@ mypy_path = "src"
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["langchain.*", "langchain_core.*", "langchain_ollama.*", "langgraph.*"]
+module = ["langchain.*", "langchain_core.*", "langchain_ollama.*", "langgraph.*", "mcp.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
     "integration: tests that require a running Ollama instance",
+    "mcp_integration: tests that require live MCP servers",
 ]

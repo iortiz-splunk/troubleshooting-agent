@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import typer
 
 from troubleshooting_agent.agent.runner import run_chat
@@ -10,6 +12,7 @@ from troubleshooting_agent.llm.ollama import (
     check_ollama_health,
     is_configured_model_available,
 )
+from troubleshooting_agent.mcp.bridge import check_mcp_servers
 
 app = typer.Typer(
     name="troubleshoot-agent",
@@ -48,6 +51,46 @@ def doctor() -> None:
     typer.echo("Ready.")
 
 
+@app.command("mcp-doctor")
+def mcp_doctor() -> None:
+    """Check Splunk MCP server connectivity and list available tools."""
+    settings = get_settings()
+
+    if not (
+        settings.enable_splunk_o11y
+        or settings.enable_splunk_cloud_mcp
+        or settings.enable_splunk_mcp
+    ):
+        typer.echo("No MCP integrations enabled.")
+        typer.echo(
+            "Set ENABLE_SPLUNK_O11Y, ENABLE_SPLUNK_CLOUD_MCP, and/or ENABLE_SPLUNK_MCP in .env"
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        results = asyncio.run(check_mcp_servers(settings))
+    except ValueError as exc:
+        typer.echo(f"Configuration error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    except Exception as exc:
+        typer.echo(f"MCP check failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    exit_code = 0
+    for info in results:
+        if info.ok:
+            typer.echo(f"{info.name}: OK ({info.tool_count} tools)")
+            for name in info.tool_names:
+                typer.echo(f"  - {name}")
+        else:
+            typer.echo(f"{info.name}: FAILED — {info.error}", err=True)
+            exit_code = 1
+
+    if exit_code:
+        raise typer.Exit(code=exit_code)
+    typer.echo("MCP ready.")
+
+
 @app.command()
 def chat(
     message: str = typer.Argument(..., help="Troubleshooting question or incident description"),
@@ -63,6 +106,9 @@ def chat(
 
     try:
         response = run_chat(settings, message)
+    except ValueError as exc:
+        typer.echo(f"Configuration error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
     except Exception as exc:
         typer.echo(f"Agent error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
