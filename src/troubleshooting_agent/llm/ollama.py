@@ -1,20 +1,10 @@
-"""Ollama LLM factory and health checks."""
+"""Ollama LLM health checks."""
 
 from __future__ import annotations
 
 import httpx
-from langchain_ollama import ChatOllama
 
 from troubleshooting_agent.config import Settings
-
-
-def build_llm(settings: Settings) -> ChatOllama:
-    """Create a ChatOllama instance from settings."""
-    return ChatOllama(
-        base_url=settings.ollama_base_url,
-        model=settings.ollama_model,
-        temperature=settings.ollama_temperature,
-    )
 
 
 def check_ollama_health(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import BaseTool
@@ -76,8 +76,12 @@ def ensure_ai_tool_calls(
     """Copy parsed tool calls onto the AIMessage when the model only wrote JSON text."""
     tools_by_name = tools_by_name or {}
     if message.tool_calls:
-        calls = _normalize_calls(list(message.tool_calls), tools_by_name)
-        if calls != list(message.tool_calls):
+        tool_call_dicts = cast(
+            list[dict[str, Any]],
+            [dict(call) for call in message.tool_calls],
+        )
+        calls = _normalize_calls(tool_call_dicts, tools_by_name)
+        if calls != tool_call_dicts:
             return AIMessage(
                 content=message.content,
                 tool_calls=calls,

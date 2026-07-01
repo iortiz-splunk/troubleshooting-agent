@@ -1,7 +1,11 @@
 """Application settings loaded from environment variables."""
 
-from pydantic import Field, model_validator
+from typing import Literal
+
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+LlmProvider = Literal["ollama", "openai", "azure_openai"]
 
 
 class Settings(BaseSettings):
@@ -11,6 +15,21 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
+    )
+
+    llm_provider: LlmProvider | None = Field(
+        default=None,
+        description=(
+            "LLM backend: ollama, openai, or azure_openai (auto-detected from env if unset)"
+        ),
+    )
+    llm_temperature: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=2.0,
+        description="Sampling temperature for troubleshooting",
+        validation_alias=AliasChoices("llm_temperature", "LLM_TEMPERATURE", "OLLAMA_TEMPERATURE"),
     )
 
     ollama_base_url: str = Field(
@@ -21,11 +40,38 @@ class Settings(BaseSettings):
         default="qwen2.5-coder:7b",
         description="Ollama model name",
     )
-    ollama_temperature: float = Field(
-        default=0.2,
-        ge=0.0,
-        le=2.0,
-        description="Sampling temperature for troubleshooting",
+
+    openai_api_key: str | None = Field(
+        default=None,
+        description="OpenAI-compatible API key (OPENAI_API_KEY)",
+        validation_alias=AliasChoices("openai_api_key", "OPENAI_API_KEY"),
+    )
+    openai_base_url: str | None = Field(
+        default=None,
+        description="OpenAI-compatible base URL, e.g. LiteLLM proxy /v1 endpoint",
+        validation_alias=AliasChoices("openai_base_url", "OPENAI_BASE_URL"),
+    )
+    openai_model_name: str = Field(
+        default="gpt-4.1-mini",
+        description="Model name for OpenAI-compatible APIs",
+        validation_alias=AliasChoices("openai_model_name", "OPENAI_MODEL_NAME"),
+    )
+
+    azure_openai_endpoint: str | None = Field(
+        default=None,
+        description="Azure OpenAI resource endpoint URL",
+    )
+    azure_openai_api_key: str | None = Field(
+        default=None,
+        description="Azure OpenAI API key",
+    )
+    azure_openai_deployment_name: str | None = Field(
+        default=None,
+        description="Azure OpenAI deployment name",
+    )
+    azure_openai_api_version: str | None = Field(
+        default=None,
+        description="Azure OpenAI API version, e.g. 2024-10-21",
     )
 
     # MCP transport (mcp-remote via npx, matching Cursor)
@@ -77,13 +123,130 @@ class Settings(BaseSettings):
         description="Bearer token for Splunk Enterprise MCP",
     )
 
-    # Slack (Phase 3)
+    # Slack demo (Socket Mode listener for Observability alerts channel)
     enable_slack: bool = Field(default=False)
-    slack_bot_token: str | None = None
-    slack_signing_secret: str | None = None
+    slack_bot_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_bot_token", "SLACK_BOT_TOKEN"),
+    )
+    slack_app_token: str | None = Field(
+        default=None,
+        description="App-level token for Socket Mode (xapp-...)",
+        validation_alias=AliasChoices("slack_app_token", "SLACK_APP_TOKEN"),
+    )
+    slack_signing_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("slack_signing_secret", "SLACK_SIGNING_SECRET"),
+    )
+    slack_alerts_channel_name: str = Field(
+        default="splunk-observability-alerts-1",
+        description="Public channel name for Observability alert posts (without #)",
+        validation_alias=AliasChoices(
+            "slack_alerts_channel_name",
+            "SLACK_ALERTS_CHANNEL_NAME",
+        ),
+    )
+    slack_alerts_channel_id: str | None = Field(
+        default=None,
+        description="Optional channel ID (C...); skips name lookup when set",
+        validation_alias=AliasChoices("slack_alerts_channel_id", "SLACK_ALERTS_CHANNEL_ID"),
+    )
+
+    # Agent logging trace (terminal)
+    agent_log_trace: bool = Field(
+        default=True,
+        description="Brief INFO logs for agent/MCP activity",
+        validation_alias=AliasChoices("agent_log_trace", "AGENT_LOG_TRACE"),
+    )
+    agent_log_debug: bool = Field(
+        default=False,
+        description="Verbose tool args in logs (workshop only)",
+        validation_alias=AliasChoices("agent_log_debug", "AGENT_LOG_DEBUG"),
+    )
+    log_format: Literal["text", "json"] = Field(
+        default="text",
+        description="Log format: text or json",
+        validation_alias=AliasChoices("log_format", "LOG_FORMAT"),
+    )
+
+    # Splunk OTel (APM traces — direct ingest; separate from o11y MCP API token)
+    enable_splunk_otel: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("enable_splunk_otel", "ENABLE_SPLUNK_OTEL"),
+    )
+    otel_service_name: str = Field(
+        default="troubleshooting-agent",
+        validation_alias=AliasChoices("otel_service_name", "OTEL_SERVICE_NAME"),
+    )
+    splunk_access_token: str | None = Field(
+        default=None,
+        description="Splunk ingest token for OTel (SPLUNK_ACCESS_TOKEN)",
+        validation_alias=AliasChoices("splunk_access_token", "SPLUNK_ACCESS_TOKEN"),
+    )
+
+    # Galileo agent observability
+    enable_galileo: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("enable_galileo", "ENABLE_GALILEO"),
+    )
+    galileo_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("galileo_api_key", "GALILEO_API_KEY"),
+    )
+    galileo_project: str = Field(
+        default="troubleshooting-agent",
+        validation_alias=AliasChoices("galileo_project", "GALILEO_PROJECT"),
+    )
+    galileo_log_stream: str = Field(
+        default="slack-investigations",
+        validation_alias=AliasChoices("galileo_log_stream", "GALILEO_LOG_STREAM"),
+    )
+    galileo_console_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("galileo_console_url", "GALILEO_CONSOLE_URL"),
+    )
 
     @model_validator(mode="after")
-    def validate_mcp_settings(self) -> "Settings":
+    def validate_llm_and_mcp_settings(self) -> "Settings":
+        if self.llm_provider is None:
+            if self.openai_api_key and self.openai_base_url:
+                self.llm_provider = "openai"
+            elif (
+                self.azure_openai_endpoint
+                and self.azure_openai_api_key
+                and self.azure_openai_deployment_name
+                and self.azure_openai_api_version
+            ):
+                self.llm_provider = "azure_openai"
+            else:
+                self.llm_provider = "ollama"
+
+        if self.llm_provider == "openai":
+            missing = [
+                name
+                for name, value in [
+                    ("OPENAI_API_KEY", self.openai_api_key),
+                    ("OPENAI_BASE_URL", self.openai_base_url),
+                ]
+                if not value
+            ]
+            if missing:
+                msg = f"llm_provider=openai requires: {', '.join(missing)}"
+                raise ValueError(msg)
+        if self.llm_provider == "azure_openai":
+            missing = [
+                name
+                for name, value in [
+                    ("AZURE_OPENAI_ENDPOINT", self.azure_openai_endpoint),
+                    ("AZURE_OPENAI_API_KEY", self.azure_openai_api_key),
+                    ("AZURE_OPENAI_DEPLOYMENT_NAME", self.azure_openai_deployment_name),
+                    ("AZURE_OPENAI_API_VERSION", self.azure_openai_api_version),
+                ]
+                if not value
+            ]
+            if missing:
+                msg = f"llm_provider=azure_openai requires: {', '.join(missing)}"
+                raise ValueError(msg)
         if self.enable_splunk_o11y:
             missing = [
                 name
@@ -121,6 +284,25 @@ class Settings(BaseSettings):
             if missing:
                 msg = f"enable_splunk_mcp requires: {', '.join(missing)}"
                 raise ValueError(msg)
+        if self.enable_slack:
+            missing = [
+                name
+                for name, value in [
+                    ("SLACK_BOT_TOKEN", self.slack_bot_token),
+                    ("SLACK_APP_TOKEN", self.slack_app_token),
+                    ("SLACK_SIGNING_SECRET", self.slack_signing_secret),
+                ]
+                if not value
+            ]
+            if missing:
+                msg = f"enable_slack requires: {', '.join(missing)}"
+                raise ValueError(msg)
+        if self.enable_splunk_otel and not self.splunk_access_token:
+            msg = "enable_splunk_otel requires: SPLUNK_ACCESS_TOKEN (ingest token)"
+            raise ValueError(msg)
+        if self.enable_galileo and not self.galileo_api_key:
+            msg = "enable_galileo requires: GALILEO_API_KEY"
+            raise ValueError(msg)
         return self
 
 

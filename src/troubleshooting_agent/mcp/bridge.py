@@ -18,6 +18,8 @@ from troubleshooting_agent.mcp.gateway import (
     splunk_enterprise_mcp_params,
     splunk_o11y_gateway_params,
 )
+from troubleshooting_agent.observability.logging_trace import log_mcp_call
+from troubleshooting_agent.observability.otel import span as otel_span
 
 
 @dataclass(frozen=True)
@@ -43,7 +45,10 @@ def _json_schema_to_model(tool_name: str, schema: dict[str, Any] | None) -> type
     fields: dict[str, Any] = {}
     for key, prop in properties.items():
         if not isinstance(prop, dict):
-            fields[key] = (dict[str, Any], Field(default_factory=dict)) if key == "params" else (Any, None)
+            if key == "params":
+                fields[key] = (dict[str, Any], Field(default_factory=dict))
+            else:
+                fields[key] = (Any, None)
             continue
         description = prop.get("description")
         # MCP marks ``params`` required, but models often send {} or flat kwargs.
@@ -55,9 +60,7 @@ def _json_schema_to_model(tool_name: str, schema: dict[str, Any] | None) -> type
             )
         else:
             fields[key] = (
-                (Any, Field(default=None, description=description))
-                if description
-                else (Any, None)
+                (Any, Field(default=None, description=description)) if description else (Any, None)
             )
 
     return create_model(f"{tool_name}_args", **fields)
@@ -68,7 +71,10 @@ def normalize_tool_call_args(schema: dict[str, Any] | None, args: dict[str, Any]
     return _normalize_mcp_arguments(schema, args)
 
 
-def _normalize_mcp_arguments(schema: dict[str, Any] | None, kwargs: dict[str, Any]) -> dict[str, Any]:
+def _normalize_mcp_arguments(
+    schema: dict[str, Any] | None,
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
     """
     MCP o11y tools require a top-level ``params`` object.
 
@@ -113,8 +119,14 @@ def _wrap_mcp_tool(session: ClientSession, mcp_tool: Tool) -> StructuredTool:
     async def _arun(**kwargs: Any) -> str:
         clean = {k: v for k, v in kwargs.items() if v is not None}
         arguments = _normalize_mcp_arguments(schema, clean)
-        result = await session.call_tool(mcp_tool.name, arguments=arguments)
-        return _format_call_tool_result(result)
+        with otel_span(
+            "mcp.tool",
+            {"mcp.tool.name": mcp_tool.name},
+        ):
+            result = await session.call_tool(mcp_tool.name, arguments=arguments)
+            formatted = _format_call_tool_result(result)
+        log_mcp_call(tool_name=mcp_tool.name, arguments=arguments, result=formatted)
+        return formatted
 
     return StructuredTool.from_function(
         coroutine=_arun,
@@ -145,11 +157,13 @@ async def check_mcp_servers(settings: Settings) -> list[McpServerInfo]:
     results: list[McpServerInfo] = []
 
     if settings.enable_splunk_o11y:
-        results.append(await _check_server(
-            "splunk_o11y",
-            splunk_o11y_gateway_params(settings),
-            settings.splunk_o11y_tool_prefix,
-        ))
+        results.append(
+            await _check_server(
+                "splunk_o11y",
+                splunk_o11y_gateway_params(settings),
+                settings.splunk_o11y_tool_prefix,
+            )
+        )
 
     if settings.enable_splunk_cloud_mcp:
         results.append(
@@ -181,9 +195,7 @@ async def _check_server(
         async with connect_mcp_session(params) as session:
             listed = await session.list_tools()
             names = [
-                t.name
-                for t in listed.tools
-                if not name_prefix or t.name.startswith(name_prefix)
+                t.name for t in listed.tools if not name_prefix or t.name.startswith(name_prefix)
             ]
             return McpServerInfo(name=name, ok=True, tool_count=len(names), tool_names=names)
     except Exception as exc:

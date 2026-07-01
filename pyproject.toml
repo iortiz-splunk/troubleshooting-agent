@@ -9,10 +9,13 @@ dependencies = [
     "langchain-core>=0.3",
     "langgraph>=0.2",
     "langchain-ollama>=0.2",
+    "langchain-openai>=0.2",
     "pydantic-settings>=2.0",
     "typer>=0.12",
     "httpx>=0.27",
     "mcp>=1.0",
+    "slack-bolt>=1.18",
+    "slack-sdk>=3.27",
 ]
 
 [project.scripts]
@@ -24,6 +27,12 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "ruff>=0.8",
+]
+observability = [
+    "splunk-opentelemetry>=2.11",
+    "opentelemetry-instrumentation-httpx",
+    "opentelemetry-instrumentation-logging",
+    "galileo[openai]>=1.0",
 ]
 
 [build-system]
@@ -49,12 +58,14 @@ mypy_path = "src"
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["langchain.*", "langchain_core.*", "langchain_ollama.*", "langgraph.*", "mcp.*"]
+module = ["langchain.*", "langchain_core.*", "langchain_ollama.*", "langchain_openai.*", "langgraph.*", "mcp.*", "slack_bolt.*", "slack_sdk.*", "splunk_opentelemetry.*", "opentelemetry.*", "galileo.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
     "integration: tests that require a running Ollama instance",
+    "azure_integration: tests that require Azure OpenAI credentials",
+    "openai_integration: tests that require OpenAI-compatible API credentials",
     "mcp_integration: tests that require live MCP servers",
 ]
