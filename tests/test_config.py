@@ -2,7 +2,7 @@
 
 import pytest
 
-from troubleshooting_agent.config import Settings
+from workshop_shared.config import Settings
 
 
 def test_settings_defaults() -> None:
@@ -99,6 +99,11 @@ def test_enable_splunk_otel_requires_ingest_token() -> None:
 def test_enable_galileo_requires_api_key() -> None:
     with pytest.raises(ValueError, match="GALILEO_API_KEY"):
         Settings(enable_galileo=True)
+
+
+def test_enable_galileo_requires_console_url() -> None:
+    with pytest.raises(ValueError, match="GALILEO_CONSOLE_URL"):
+        Settings(enable_galileo=True, galileo_api_key="key")
 
 
 def test_azure_openai_settings_valid() -> None:

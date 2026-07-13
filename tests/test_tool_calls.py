@@ -2,7 +2,7 @@
 
 from langchain_core.messages import AIMessage
 
-from troubleshooting_agent.agent.tool_calls import (
+from workshop_shared.tool_calls import (
     ensure_ai_tool_calls,
     extract_tool_calls_from_text,
 )

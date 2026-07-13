@@ -2,9 +2,9 @@
 
 from unittest.mock import MagicMock, patch
 
-from troubleshooting_agent.agent.graph import build_agent_graph
-from troubleshooting_agent.config import Settings
-from troubleshooting_agent.tools.base import get_tools
+from part1_agent.agent import build_agent_graph
+from workshop_shared.config import Settings
+from workshop_shared.tools.base import get_tools
 
 
 def test_build_agent_graph_compiles() -> None:
@@ -16,9 +16,9 @@ def test_build_agent_graph_compiles() -> None:
     assert app is not None
 
 
-@patch("troubleshooting_agent.agent.runner.asyncio.run")
+@patch("part3_agent.agent.asyncio.run")
 def test_run_chat_returns_ai_message(mock_asyncio_run: MagicMock) -> None:
-    from troubleshooting_agent.agent.runner import run_chat
+    from part3_agent.agent import run_chat
 
     mock_asyncio_run.return_value = "Check load balancer health."
     settings = Settings()

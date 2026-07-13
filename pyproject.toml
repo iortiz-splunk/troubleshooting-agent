@@ -1,7 +1,7 @@
 [project]
 name = "troubleshooting-agent"
 version = "0.1.0"
-description = "AI troubleshooting agent for applications and systems"
+description = "AI troubleshooting agent workshop — shared integrations + three agent parts"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -16,10 +16,11 @@ dependencies = [
     "mcp>=1.0",
     "slack-bolt>=1.18",
     "slack-sdk>=3.27",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
-troubleshoot-agent = "troubleshooting_agent.cli:app"
+troubleshooting-agent = "workshop_shared.cli:app"
 
 [project.optional-dependencies]
 dev = [
@@ -40,12 +41,17 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/troubleshooting_agent"]
+packages = [
+    "shared/workshop_shared",
+    "part1_agent",
+    "part2_agent",
+    "part3_agent",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests"]
+src = ["shared", "part1_agent", "part2_agent", "part3_agent", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -53,12 +59,12 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["troubleshooting_agent"]
-mypy_path = "src"
+packages = ["workshop_shared", "part1_agent", "part2_agent", "part3_agent"]
+mypy_path = ["shared", "part1_agent", "part2_agent", "part3_agent"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["langchain.*", "langchain_core.*", "langchain_ollama.*", "langchain_openai.*", "langgraph.*", "mcp.*", "slack_bolt.*", "slack_sdk.*", "splunk_opentelemetry.*", "opentelemetry.*", "galileo.*"]
+module = ["langchain.*", "langchain_core.*", "langchain_ollama.*", "langchain_openai.*", "langgraph.*", "mcp.*", "slack_bolt.*", "slack_sdk.*", "splunk_opentelemetry.*", "opentelemetry.*", "galileo.*", "yaml.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

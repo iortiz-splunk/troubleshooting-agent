@@ -4,8 +4,8 @@ import os
 
 import pytest
 
-from troubleshooting_agent.config import Settings
-from troubleshooting_agent.llm.azure import check_azure_openai_health_sync
+from workshop_shared.config import Settings
+from workshop_shared.llm.azure import check_azure_openai_health_sync
 
 pytestmark = pytest.mark.azure_integration
 

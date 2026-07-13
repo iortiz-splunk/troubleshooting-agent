@@ -4,8 +4,8 @@ import os
 
 import pytest
 
-from troubleshooting_agent.config import Settings
-from troubleshooting_agent.llm.ollama import check_ollama_health, is_configured_model_available
+from workshop_shared.config import Settings
+from workshop_shared.llm.ollama import check_ollama_health, is_configured_model_available
 
 pytestmark = pytest.mark.integration
 

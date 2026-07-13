@@ -1,8 +1,8 @@
 """Tests for tool registry."""
 
-from troubleshooting_agent.config import Settings
-from troubleshooting_agent.tools.base import get_tools
-from troubleshooting_agent.tools.builtin import agent_health_check
+from workshop_shared.config import Settings
+from workshop_shared.tools.base import get_tools
+from workshop_shared.tools.builtin import agent_health_check
 
 
 def test_get_tools_includes_builtin() -> None:
