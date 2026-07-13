@@ -1,0 +1,35 @@
+---
+description: Section comments for readable, navigable Python modules
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Section comments
+
+When adding or editing Python in `src/`, group logical blocks with section headers so non-experts can scan the file.
+
+## Format
+
+Use this delimiter before each major section:
+
+```python
+# ---------------------------------------------------------------------------
+# Section title (short noun phrase)
+# One or two sentences: what this block does and why it exists.
+# ---------------------------------------------------------------------------
+```
+
+## When to add sections
+
+- Public entry points vs internal helpers
+- Setup/bootstrap vs runtime logic
+- Parsing/normalization vs side effects (I/O, network)
+- Graph construction vs node handlers
+- Observability (logging, OTel, callbacks) vs business logic
+
+## Guidelines
+
+- Prefer section headers over line-by-line comments.
+- Keep explanations plain English; name the consumer when helpful (e.g. "CLI and Slack call this").
+- Do not restate obvious code (`i += 1  # increment i`).
+- Match existing section style in neighboring files.

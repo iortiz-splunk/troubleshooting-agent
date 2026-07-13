@@ -6,8 +6,8 @@ import logging
 
 import pytest
 
-from troubleshooting_agent.config import Settings
-from troubleshooting_agent.observability.logging_trace import (
+from workshop_shared.config import Settings
+from workshop_shared.observability.logging_trace import (
     investigation_scope,
     log_mcp_call,
     preview,
@@ -30,7 +30,7 @@ def test_preview_params_redacts_secrets() -> None:
 
 def test_investigation_scope_correlates_logs(caplog: pytest.LogCaptureFixture) -> None:
     settings = Settings(agent_log_trace=True)
-    caplog.set_level(logging.INFO, logger="troubleshooting_agent")
+    caplog.set_level(logging.INFO, logger="workshop_shared")
 
     with investigation_scope(settings, "slack:1234.5678", metadata={"service": "Verification"}):
         log_mcp_call(
@@ -45,7 +45,7 @@ def test_investigation_scope_correlates_logs(caplog: pytest.LogCaptureFixture) -
 
 def test_log_mcp_call_error_line(caplog: pytest.LogCaptureFixture) -> None:
     settings = Settings(agent_log_trace=True)
-    caplog.set_level(logging.INFO, logger="troubleshooting_agent")
+    caplog.set_level(logging.INFO, logger="workshop_shared")
 
     with investigation_scope(settings, "chat:abc"):
         log_mcp_call(

@@ -4,11 +4,11 @@ from unittest.mock import MagicMock, patch
 
 from pydantic import SecretStr
 
-from troubleshooting_agent.config import Settings
-from troubleshooting_agent.llm.factory import build_llm
+from workshop_shared.config import Settings
+from workshop_shared.llm.factory import build_llm
 
 
-@patch("troubleshooting_agent.llm.factory.ChatOpenAI")
+@patch("workshop_shared.llm.factory.ChatOpenAI")
 def test_build_llm_openai(mock_openai: MagicMock) -> None:
     settings = Settings(
         llm_provider="openai",
@@ -26,7 +26,7 @@ def test_build_llm_openai(mock_openai: MagicMock) -> None:
     )
 
 
-@patch("troubleshooting_agent.llm.factory.AzureChatOpenAI")
+@patch("workshop_shared.llm.factory.AzureChatOpenAI")
 def test_build_llm_azure(mock_azure: MagicMock) -> None:
     settings = Settings(
         llm_provider="azure_openai",
@@ -46,7 +46,7 @@ def test_build_llm_azure(mock_azure: MagicMock) -> None:
     )
 
 
-@patch("troubleshooting_agent.llm.factory.ChatOllama")
+@patch("workshop_shared.llm.factory.ChatOllama")
 def test_build_llm_ollama(mock_ollama: MagicMock) -> None:
     settings = Settings(ollama_model="test-model", llm_temperature=0.5)
     build_llm(settings)

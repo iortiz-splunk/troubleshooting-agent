@@ -2,8 +2,8 @@
 
 import pytest
 
-from troubleshooting_agent.config import Settings
-from troubleshooting_agent.mcp.gateway import (
+from workshop_shared.config import Settings
+from workshop_shared.mcp.gateway import (
     splunk_cloud_mcp_params,
     splunk_enterprise_mcp_params,
     splunk_o11y_gateway_params,

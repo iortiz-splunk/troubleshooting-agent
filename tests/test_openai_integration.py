@@ -4,8 +4,8 @@ import os
 
 import pytest
 
-from troubleshooting_agent.config import Settings
-from troubleshooting_agent.llm.invoke_health import check_llm_invoke_health_sync
+from workshop_shared.config import Settings
+from workshop_shared.llm.invoke_health import check_llm_invoke_health_sync
 
 pytestmark = pytest.mark.openai_integration
 
