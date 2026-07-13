@@ -4,15 +4,17 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
-from langchain_ollama import ChatOllama
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
 from troubleshooting_agent.agent.tool_calls import ensure_ai_tool_calls
+from troubleshooting_agent.observability.logging_trace import log_llm_turn
+from troubleshooting_agent.observability.otel import span as otel_span
 from troubleshooting_agent.prompts.system import SYSTEM_PROMPT
 
 
@@ -34,14 +36,14 @@ def _should_continue(state: AgentState) -> Literal["tools", "__end__"]:
 
 
 def build_agent_graph(
-    llm: ChatOllama,
+    llm: BaseChatModel,
     tools: list[BaseTool],
 ) -> StateGraph[AgentState, None, AgentState, AgentState]:
     """
     Build a LangGraph ReAct-style loop: agent -> tools -> agent -> ...
 
     Args:
-        llm: Ollama chat model
+        llm: Chat model (Ollama or Azure OpenAI)
         tools: LangChain tools to bind (may be empty)
     """
     tools_by_name = {t.name: t for t in tools}
@@ -62,9 +64,21 @@ def build_agent_graph(
         invoke_model = model
         if model_force_tools is not None and not has_tool_results:
             invoke_model = model_force_tools
-        response = await invoke_model.ainvoke(messages)
+        with otel_span("agent.llm.turn"):
+            response = await invoke_model.ainvoke(messages)
         if isinstance(response, AIMessage):
             response = ensure_ai_tool_calls(response, tools_by_name=tools_by_name)
+            if response.tool_calls:
+                tool_names = [
+                    str(tc.get("name", ""))
+                    for tc in response.tool_calls
+                    if isinstance(tc, dict) and tc.get("name")
+                ]
+                log_llm_turn(tool_names=tool_names, final_chars=None)
+            else:
+                content = response.content
+                chars = len(content) if isinstance(content, str) else 0
+                log_llm_turn(tool_names=None, final_chars=chars)
         return {"messages": [response]}
 
     graph = StateGraph(AgentState)

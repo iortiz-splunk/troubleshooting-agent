@@ -1,9 +1,6 @@
 """Smoke tests for agent graph (mocked LLM)."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-from langchain_core.messages import AIMessage
+from unittest.mock import MagicMock, patch
 
 from troubleshooting_agent.agent.graph import build_agent_graph
 from troubleshooting_agent.config import Settings

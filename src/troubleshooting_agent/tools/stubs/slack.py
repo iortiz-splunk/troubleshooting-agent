@@ -1,11 +1,7 @@
 """
-Slack integration stub (Phase 3).
+Slack integration — see troubleshooting_agent.slack (listener, doctor).
 
-Planned flow: receive error/failure notifications, normalize to incident context,
-invoke the agent, reply in thread.
-
-Required env: SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET
-Enable with: ENABLE_SLACK=true
+Enable with ENABLE_SLACK=true and run: troubleshoot-agent slack-listen
 """
 
 from langchain_core.tools import BaseTool
@@ -14,5 +10,5 @@ from troubleshooting_agent.config import Settings
 
 
 def get_tools(_settings: Settings) -> list[BaseTool]:
-    """Return Slack-related tools when implemented."""
+    """Slack is event-driven (slack-listen), not LangChain tools."""
     return []

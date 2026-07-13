@@ -1,4 +1,4 @@
-"""Tests for Ollama LLM factory and health checks."""
+"""Tests for Ollama health checks."""
 
 from unittest.mock import MagicMock
 
@@ -6,17 +6,9 @@ import httpx
 
 from troubleshooting_agent.config import Settings
 from troubleshooting_agent.llm.ollama import (
-    build_llm,
     check_ollama_health,
     is_configured_model_available,
 )
-
-
-def test_build_llm_uses_settings() -> None:
-    settings = Settings(ollama_model="test-model", ollama_temperature=0.5)
-    llm = build_llm(settings)
-    assert llm.model == "test-model"
-    assert llm.temperature == 0.5
 
 
 def test_check_ollama_health_success() -> None:

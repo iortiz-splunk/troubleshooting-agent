@@ -22,7 +22,10 @@ Observability tools (when connected):
 Splunk Enterprise MCP (when connected):
 - Use Splunk MCP tools for log search and Splunk-specific investigation.
 
-Slack is not connected unless a Slack tool is available.
+Slack demo (when slack-listen is running):
+- Observability alerts arrive in the configured Slack alerts channel.
+- The listener investigates automatically and replies in the thread (not as channel spam).
+- Use o11y_* tools to corroborate alert text with live Observability data.
 
 Response style:
 - Be concise and actionable.
