@@ -10,7 +10,9 @@ from workshop_shared.slack.alert_resolve import (
     _pick_event_id,
     _pick_matching_alert,
     enrich_alert_context,
+    fetch_alert_payload,
 )
+from workshop_shared.slack.messages import parse_o11y_alert_context
 
 
 def test_pick_event_id_prefers_matching_rule() -> None:
@@ -74,6 +76,131 @@ def test_identifiers_from_alert_falls_back_to_incident_id() -> None:
     assert ids["incident_id"] == "CHkAbC123"
     assert ids["alert_id"] == "HMKipbjAwAI"
     assert "event_id" not in ids
+
+
+def test_pick_matching_alert_rejects_wrong_alert_when_event_id_anchored() -> None:
+    """Regression: must not return most-recent unrelated alert when event_id is known."""
+    alerts = [
+        {
+            "id": "HFyGzGpA0AQ",
+            "eventId": "HNJNMIIAwAE",
+            "detectLabel": "ohein - Latency SQL Fraud",
+            "active": True,
+            "anomalyState": "anomalous",
+            "anomalyStateUpdateTimestampMs": 1783984440000,
+            "customProperties": {"sqlserver.instance.name": "sql-server-fraud-0"},
+        },
+        {
+            "id": "HNJMymSAwAI",
+            "eventId": "HNJMymSAwAI",
+            "incidentId": "HNH7A8rAwAQ",
+            "detectorId": "HMKbopJA4AA",
+            "detectLabel": "ivortiz-high-latency-bad-capital",
+            "customProperties": {
+                "sf_service": "Verification",
+                "sf_environment": "Brian-E-AD-Capital",
+            },
+        },
+    ]
+    context = {
+        "event_id": "HNJMymSAwAI",
+        "incident_id": "HNH7A8rAwAQ",
+        "alert_id": "HNJMymSAwAI",
+        "service": "Verification",
+        "rule": "ivortiz-high-latency-bad-capital",
+    }
+    match = _pick_matching_alert(alerts, context)
+    assert match is not None
+    assert match["eventId"] == "HNJMymSAwAI"
+
+
+def test_pick_matching_alert_returns_none_when_anchor_missing_from_results() -> None:
+    alerts = [
+        {
+            "id": "HFyGzGpA0AQ",
+            "eventId": "HNJNMIIAwAE",
+            "detectLabel": "ohein - Latency SQL Fraud",
+            "active": True,
+        },
+    ]
+    match = _pick_matching_alert(
+        alerts,
+        {"event_id": "HNJMymSAwAI", "service": "Verification"},
+    )
+    assert match is None
+
+
+def test_parse_o11y_alert_context_extracts_detector_id() -> None:
+    text = (
+        'Rule "ivortiz-high-latency-bad-capital" triggered.\n'
+        "Alert EventID: HNJMymSAwAI\n"
+        "IncidentID: HNH7A8rAwAQ\n"
+        "DetectorId: HMKbopJA4AA\n"
+        "{sf_environment=Brian-E-AD-Capital, sf_service=Verification}"
+    )
+    context = parse_o11y_alert_context(text)
+    assert context["event_id"] == "HNJMymSAwAI"
+    assert context["detector_id"] == "HMKbopJA4AA"
+
+
+@pytest.mark.asyncio
+async def test_fetch_alert_payload_skips_non_matching_batches() -> None:
+    settings = MagicMock()
+    settings.enable_splunk_o11y = True
+
+    wrong = MagicMock()
+    wrong.isError = False
+    wrong.content = [
+        TextContent(
+            type="text",
+            text=(
+                '{"alerts":[{"id":"HFyGzGpA0AQ","eventId":"HNJNMIIAwAE",'
+                '"detectLabel":"ohein - Latency SQL Fraud","active":true}]}'
+            ),
+        )
+    ]
+    right = MagicMock()
+    right.isError = False
+    right.content = [
+        TextContent(
+            type="text",
+            text=(
+                '{"alerts":[{"id":"HNJMymSAwAI","eventId":"HNJMymSAwAI",'
+                '"incidentId":"HNH7A8rAwAQ","detectLabel":"ivortiz-high-latency-bad-capital"}]}'
+            ),
+        )
+    ]
+
+    mock_session = AsyncMock()
+    mock_session.call_tool.side_effect = [wrong, right]
+
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__.return_value = mock_session
+
+    with (
+        patch(
+            "workshop_shared.slack.alert_resolve.splunk_o11y_gateway_params",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "workshop_shared.slack.alert_resolve.connect_mcp_session",
+            return_value=mock_cm,
+        ),
+    ):
+        alert, error = await fetch_alert_payload(
+            settings,
+            {
+                "event_id": "HNJMymSAwAI",
+                "incident_id": "HNH7A8rAwAQ",
+                "service": "Verification",
+                "rule": "ivortiz-high-latency-bad-capital",
+            },
+        )
+
+    assert error is None
+    assert alert is not None
+    assert alert["eventId"] == "HNJMymSAwAI"
+    assert mock_session.call_tool.call_count == 2
 
 
 @pytest.mark.asyncio

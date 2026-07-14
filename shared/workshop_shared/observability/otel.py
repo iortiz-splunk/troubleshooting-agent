@@ -17,8 +17,6 @@ _otel_initialized = False
 # Splunk OTel bootstrap
 # Starts the Splunk distro once; sets env vars for direct ingest when configured.
 # ---------------------------------------------------------------------------
-
-
 def init_splunk_otel(settings: Settings) -> bool:
     """Start Splunk OTel distro (idempotent). Returns True when active."""
     global _otel_initialized
@@ -61,8 +59,6 @@ def init_splunk_otel(settings: Settings) -> bool:
 # Auto-instrumentation
 # httpx covers outbound LLM HTTP; LangGraph/MCP use manual spans below.
 # ---------------------------------------------------------------------------
-
-
 def _init_httpx_instrumentation() -> None:
     try:
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
@@ -80,8 +76,6 @@ def otel_active() -> bool:
 # Manual span helper
 # No-op when OTel is off; used for slack.alert, agent.investigation, mcp.tool, etc.
 # ---------------------------------------------------------------------------
-
-
 @contextmanager
 def span(name: str, attributes: dict[str, Any] | None = None) -> Iterator[Any]:
     """Manual span when Splunk OTel is active; no-op otherwise."""

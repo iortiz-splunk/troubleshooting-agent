@@ -22,6 +22,10 @@ from workshop_shared.workshop_context import (
 
 _active_part: str | None = None
 
+# ---------------------------------------------------------------------------
+# Typer app
+# Single CLI for all workshop parts; agent module is chosen from cwd or --part.
+# ---------------------------------------------------------------------------
 app = typer.Typer(
     name="troubleshooting-agent",
     help="AI troubleshooting agent — behavior depends on which part directory you run from.",
@@ -61,6 +65,10 @@ def _part_label(ctx: typer.Context) -> str:
     return PART_LABELS.get(part, part)
 
 
+# ---------------------------------------------------------------------------
+# Health-check commands
+# doctor / mcp-doctor / slack-doctor verify config before investigations.
+# ---------------------------------------------------------------------------
 @app.command()
 def doctor(ctx: typer.Context) -> None:
     """Check LLM connectivity."""
@@ -85,6 +93,10 @@ def mcp_doctor(ctx: typer.Context) -> None:
         raise typer.Exit(code=1) from exc
 
 
+# ---------------------------------------------------------------------------
+# Investigation commands
+# chat = one-shot CLI; slack-listen = auto-investigate alerts in the alerts channel.
+# ---------------------------------------------------------------------------
 @app.command()
 def chat(
     ctx: typer.Context,
@@ -105,7 +117,8 @@ def chat(
     except Exception as exc:
         typer.echo(f"Agent error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
-    typer.echo(response)
+    if not settings.agent_log_trace:
+        typer.echo(response)
 
 
 @app.command("slack-doctor")

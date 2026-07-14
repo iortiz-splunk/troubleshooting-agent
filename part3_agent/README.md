@@ -1,4 +1,4 @@
-# Part 3 — Full agent + troubleshoot skill
+# Part 3 — Four-node graph + skills
 
 **Prerequisite:** [shared/README.md](../shared/README.md)
 
@@ -9,31 +9,70 @@ cd part3_agent
 troubleshooting-agent slack-listen
 ```
 
+## Architecture
+
+Part 3 runs a **four-node LangGraph workflow** (not the Part 1 single ReAct loop):
+
+```
+START → identify → categorize → investigate → report → END
+```
+
+| Node | What it does |
+|------|----------------|
+| `identify` | Code-first MCP alert search, then `identify_llm` / `identify_tools` sub-loop if needed |
+| `categorize` | Deterministic Python: alert → APM / IM / RUM / Synthetics |
+| `investigate` | Code-loads product skill, runs `investigate_llm` / `investigate_tools` ReAct |
+| `report` | Code-loads `troubleshoot-report`, formats final output |
+
 ## Key files
 
 | File | Purpose |
 |------|---------|
-| `agent.py` | Full agent with builtins + MCP |
-| `skill_router.py` | Loads the **troubleshoot** orchestration skill into the prompt |
-| `skills/` | Playbook library (orchestration + product workflows) |
+| `agent.py` | `run_chat` → compiles and invokes Part 3 graph |
+| `graph.py` | Four-node workflow + named ReAct subgraphs |
+| `skill_tools.py` | `load_skill_content`, `list_skills`, LangChain tools |
+| `skill_categorizer.py` | Alert → product type (no LLM) |
+| `skill_router.py` | Base prompt + troubleshoot overview |
+| `skills/` | Playbook library (source of truth) |
 
-## Skills
+## Skills at runtime
 
-At runtime, only **`troubleshoot`** is injected into the system prompt. It orchestrates:
+| Step | Skill loaded |
+|------|----------------|
+| identify | `get-alerts-or-incidents` (preloaded into identify prompt) |
+| categorize | rules from `troubleshoot/reference.md` (code) |
+| investigate | `troubleshoot-{apm,im,rum,synthetics}-incidents` (code-loaded by product) |
+| report | `troubleshoot-report` (code-loaded) |
 
-1. **get-alerts-or-incidents** — load alert payload
-2. Categorize **APM / IM / RUM / Synthetics**
-3. **troubleshoot-{apm,im,rum,synthetics}-incidents** — product workflow
-4. **troubleshoot-report** — structured final output
+## Galileo / observability
 
-The agent follows links to other skills under `skills/` during the investigation.
+Galileo traces show **named workflow nodes** instead of repeated `Agent:Agent`:
 
-Terminal trace (`AGENT_LOG_TRACE=true`) includes `skill=troubleshoot` in investigation metadata.
+```
+part3_investigation
+├── identify
+│   ├── identify_llm
+│   └── identify_tools
+├── categorize
+├── investigate
+│   ├── investigate_llm
+│   └── investigate_tools
+└── report
+```
+
+RunnableConfig metadata includes `agent.node`, `agent.product_type`, and `agent.skills_loaded`.
+
+Terminal trace (`AGENT_LOG_TRACE=true`, default) shows numbered steps, graph node transitions, and a final **Agent response** block. See [shared/README.md](../shared/README.md#what-you-see-in-the-terminal).
+
+Per-investigation JSONL trace files are written to `shared/logs/investigations/` by default
+(`AGENT_LOG_DIR`, disable with empty value). Each Slack/CLI run gets one file with
+node snapshots, alert IDs, MCP tool calls, and LLM turns — useful when the report
+references a different `detectorId` than the Slack alert.
 
 ## Demo script
 
-1. Same alert through Part 1 → Part 2 (manual prompt edit) → Part 3 (orchestrated workflow).
-2. Show Galileo session named by Observability `eventId`.
+1. Same alert through Part 1 → Part 2 (manual prompt edit) → Part 3 (structured graph).
+2. Show Galileo session named by Observability `eventId` and workshop part (e.g. `part3_agent`) with distinct node names.
 3. Show thread reply from `slack-listen`.
 
 ## Facilitator checklist

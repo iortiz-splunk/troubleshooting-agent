@@ -25,8 +25,6 @@ from workshop_shared.observability.otel import span as otel_span
 # Health-check result type
 # Returned by mcp-doctor; no secrets in tool lists or errors.
 # ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class McpServerInfo:
     """Result of an MCP connectivity check."""
@@ -42,8 +40,6 @@ class McpServerInfo:
 # Schema → Pydantic
 # MCP tools declare JSON Schema; we build a Pydantic model for LangChain args.
 # ---------------------------------------------------------------------------
-
-
 def _json_schema_to_model(tool_name: str, schema: dict[str, Any] | None) -> type[BaseModel]:
     """Build a Pydantic model from an MCP JSON Schema object."""
     if not schema or schema.get("type") != "object":
@@ -81,8 +77,6 @@ def _json_schema_to_model(tool_name: str, schema: dict[str, Any] | None) -> type
 # Argument normalization
 # o11y MCP tools require {"params": {...}}; models often send flat kwargs.
 # ---------------------------------------------------------------------------
-
-
 def normalize_tool_call_args(schema: dict[str, Any] | None, args: dict[str, Any]) -> dict[str, Any]:
     """Normalize LangChain tool-call args before ToolNode / MCP invocation."""
     return _normalize_mcp_arguments(schema, args)
@@ -146,7 +140,6 @@ def _normalize_mcp_arguments(
 # MCP result formatting
 # Turn CallToolResult into a string the LLM can read in the next turn.
 # ---------------------------------------------------------------------------
-
 # Large APM payloads can exceed the LLM context window; cap tool output size.
 _MCP_RESULT_MAX_CHARS = 32_000
 
@@ -181,8 +174,6 @@ def _format_call_tool_result(result: CallToolResult) -> str:
 # LangChain tool wrapper
 # Each MCP tool becomes an async StructuredTool that calls session.call_tool.
 # ---------------------------------------------------------------------------
-
-
 def _wrap_mcp_tool(session: ClientSession, mcp_tool: Tool) -> StructuredTool:
     schema = mcp_tool.inputSchema if isinstance(mcp_tool.inputSchema, dict) else None
     args_model = _json_schema_to_model(mcp_tool.name, schema)
@@ -227,8 +218,6 @@ async def create_langchain_tools_from_session(
 # MCP connectivity probes
 # Used by mcp-doctor to verify each enabled Splunk MCP server.
 # ---------------------------------------------------------------------------
-
-
 async def check_mcp_servers(settings: Settings) -> list[McpServerInfo]:
     """Probe configured MCP servers and return tool lists (no secrets in output)."""
     results: list[McpServerInfo] = []

@@ -20,6 +20,10 @@ _TIME_RANGE_LADDER = ("-1h", "-6h", "-1d", "-3d", "-7d")
 _DEFAULT_ALERT_LIMIT = 500
 
 
+# ---------------------------------------------------------------------------
+# Alert matching
+# Pick the best MCP alert row for a Slack notification (rule, service, env).
+# ---------------------------------------------------------------------------
 def _pick_event_id(alerts: list[dict[str, Any]], context: dict[str, str]) -> str | None:
     """Choose the O11y eventId from MCP search results for this Slack notification."""
     alert = _pick_matching_alert(alerts, context)
@@ -61,19 +65,38 @@ def _custom_properties(alert: dict[str, Any]) -> dict[str, Any]:
     return props if isinstance(props, dict) else {}
 
 
-def _matches_service_env(alert: dict[str, Any], context: dict[str, str]) -> bool:
+def _matches_service_env(
+    alert: dict[str, Any],
+    context: dict[str, str],
+    *,
+    strict: bool = False,
+) -> bool:
     props = _custom_properties(alert)
     service = (context.get("service") or "").strip()
     environment = (context.get("environment") or "").strip()
     if service:
         alert_service = str(props.get("sf_service") or alert.get("sf_service") or "").strip()
-        if alert_service and alert_service != service:
+        if strict:
+            if alert_service != service:
+                return False
+        elif alert_service and alert_service != service:
             return False
     if environment:
         alert_env = str(props.get("sf_environment") or alert.get("sf_environment") or "").strip()
-        if alert_env and alert_env != environment:
+        if strict:
+            if alert_env != environment:
+                return False
+        elif alert_env and alert_env != environment:
             return False
     return bool(service or environment)
+
+
+def _has_anchor_ids(context: dict[str, str]) -> bool:
+    """True when Slack/MCP context includes IDs we must match exactly."""
+    return any(
+        (context.get(key) or "").strip()
+        for key in ("event_id", "incident_id", "alert_id", "detector_id")
+    )
 
 
 def _pick_matching_alert(
@@ -85,25 +108,62 @@ def _pick_matching_alert(
         return None
 
     sorted_alerts = sorted(alerts, key=_alert_sort_key, reverse=True)
+    anchored = _has_anchor_ids(context)
+
+    if anchored:
+        event_id = (context.get("event_id") or "").strip()
+        if event_id:
+            for alert in sorted_alerts:
+                for key in ("eventId", "event_id", "id"):
+                    value = alert.get(key)
+                    if isinstance(value, str) and _ids_equivalent(value, event_id):
+                        return alert
+            return None
+
+        incident_id = (context.get("incident_id") or "").strip()
+        if incident_id:
+            for alert in sorted_alerts:
+                alert_incident = alert.get("incidentId")
+                if isinstance(alert_incident, str) and _ids_equivalent(alert_incident, incident_id):
+                    return alert
+            return None
+
+        alert_id = (context.get("alert_id") or "").strip()
+        if alert_id:
+            for alert in sorted_alerts:
+                for key in ("eventId", "event_id", "id"):
+                    value = alert.get(key)
+                    if isinstance(value, str) and _ids_equivalent(value, alert_id):
+                        return alert
+            return None
+
+        detector_id = (context.get("detector_id") or "").strip()
+        if detector_id:
+            for alert in sorted_alerts:
+                alert_detector = alert.get("detectorId")
+                if isinstance(alert_detector, str) and _ids_equivalent(alert_detector, detector_id):
+                    if _matches_rule(alert, context) or _matches_service_env(
+                        alert, context, strict=True
+                    ):
+                        return alert
+            for alert in sorted_alerts:
+                alert_detector = alert.get("detectorId")
+                if isinstance(alert_detector, str) and _ids_equivalent(alert_detector, detector_id):
+                    return alert
+            return None
+
+        return None
 
     for alert in sorted_alerts:
-        if _matches_rule(alert, context) and _matches_service_env(alert, context):
+        if _matches_rule(alert, context) and _matches_service_env(alert, context, strict=True):
             return alert
 
     for alert in sorted_alerts:
         if _matches_rule(alert, context):
             return alert
 
-    alert_id = (context.get("alert_id") or "").strip()
-    if alert_id:
-        for alert in sorted_alerts:
-            for key in ("eventId", "event_id", "id"):
-                value = alert.get(key)
-                if isinstance(value, str) and _ids_equivalent(value, alert_id):
-                    return alert
-
     for alert in sorted_alerts:
-        if _matches_service_env(alert, context) and alert.get("active"):
+        if _matches_service_env(alert, context, strict=True) and alert.get("active"):
             return alert
 
     for alert in sorted_alerts:
@@ -156,6 +216,10 @@ def _parse_mcp_alerts_payload(text: str) -> list[dict[str, Any]]:
     return [item for item in alerts if isinstance(item, dict)]
 
 
+# ---------------------------------------------------------------------------
+# MCP alert search
+# Progressive search strategies when Slack omits eventId (widen time, drop filters).
+# ---------------------------------------------------------------------------
 def _base_search_params(*, time_start: str) -> dict[str, Any]:
     return {
         "time_range": {"start": time_start, "stop": "now"},
@@ -170,20 +234,14 @@ def _search_param_strategies(context: dict[str, str]) -> list[dict[str, Any]]:
     service = (context.get("service") or "").strip()
     environment = (context.get("environment") or "").strip()
     rule = (context.get("rule") or "").strip()
+    detector_id = (context.get("detector_id") or "").strip()
+    anchored = _has_anchor_ids(context)
 
     for time_start in _TIME_RANGE_LADDER:
-        if service:
-            with_env = {**_base_search_params(time_start=time_start), "service_name": service}
-            if environment:
-                with_env["environments"] = [environment]
-            strategies.append(with_env)
-
-            if environment:
-                service_only = {
-                    **_base_search_params(time_start=time_start),
-                    "service_name": service,
-                }
-                strategies.append(service_only)
+        if detector_id:
+            strategies.append(
+                {**_base_search_params(time_start=time_start), "detector_id": detector_id}
+            )
 
         if rule:
             keyword_search = {
@@ -199,6 +257,22 @@ def _search_param_strategies(context: dict[str, str]) -> list[dict[str, Any]]:
                         "service_name": service,
                     }
                 )
+
+        if anchored:
+            strategies.append(_base_search_params(time_start=time_start))
+
+        if service:
+            with_env = {**_base_search_params(time_start=time_start), "service_name": service}
+            if environment:
+                with_env["environments"] = [environment]
+            strategies.append(with_env)
+
+            if environment:
+                service_only = {
+                    **_base_search_params(time_start=time_start),
+                    "service_name": service,
+                }
+                strategies.append(service_only)
 
     # De-dupe identical param dicts while preserving order.
     seen: set[str] = set()
@@ -254,6 +328,10 @@ async def _resolve_identifiers_via_mcp(
     return {}
 
 
+# ---------------------------------------------------------------------------
+# Public entry point
+# Called before agent run for Slack alerts; fills event_id for Galileo session names.
+# ---------------------------------------------------------------------------
 async def enrich_alert_context(
     settings: Settings,
     context: dict[str, str],
@@ -297,3 +375,47 @@ async def enrich_alert_context(
         ", ".join(f"{key}={value}" for key, value in identifiers.items()),
     )
     return enriched
+
+
+async def fetch_alert_payload(
+    settings: Settings,
+    context: dict[str, str],
+) -> tuple[dict[str, Any] | None, str | None]:
+    """
+    Search O11y MCP for the full alert record matching investigation context.
+
+    Returns (alert_payload, error_message). On success error_message is None.
+    """
+    if not settings.enable_splunk_o11y:
+        return None, "Splunk Observability MCP is not enabled"
+
+    try:
+        async with connect_mcp_session(splunk_o11y_gateway_params(settings)) as session:
+            for attempt, params in enumerate(_search_param_strategies(context)):
+                alerts = await _search_alerts(session, params)
+                _logger.debug(
+                    "fetch_alert_payload attempt=%s alerts=%s params=%s",
+                    attempt,
+                    len(alerts),
+                    params,
+                )
+                alert = _pick_matching_alert(alerts, context)
+                if alert is not None:
+                    ids = _identifiers_from_alert(alert)
+                    _logger.info(
+                        "fetch_alert_payload matched attempt=%s ids=%s params=%s",
+                        attempt,
+                        ids,
+                        params,
+                    )
+                    return alert, None
+    except Exception as exc:
+        _logger.warning("fetch_alert_payload MCP failed", exc_info=True)
+        return None, f"MCP search failed: {exc}"
+
+    anchor_hint = ", ".join(
+        f"{key}={context[key]}"
+        for key in ("event_id", "incident_id", "alert_id", "detector_id")
+        if context.get(key)
+    )
+    return None, f"No matching alert found in O11y MCP search ({anchor_hint or 'no anchors'})"

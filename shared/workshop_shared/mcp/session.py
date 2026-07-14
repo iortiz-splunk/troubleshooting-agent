@@ -23,8 +23,6 @@ from workshop_shared.tools.stubs import splunk_cloud_mcp, splunk_mcp, splunk_o11
 # Opens MCP stdio subprocesses for the duration of one investigation so tool
 # calls reuse the same connection instead of spawning per call.
 # ---------------------------------------------------------------------------
-
-
 class McpSessionManager:
     """
     Holds MCP sessions for the duration of an agent run.

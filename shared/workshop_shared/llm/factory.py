@@ -13,8 +13,6 @@ from workshop_shared.config import Settings
 # API key helper
 # Wraps plain strings as SecretStr so keys are not logged by LangChain.
 # ---------------------------------------------------------------------------
-
-
 def _as_secret(value: str | None) -> SecretStr | None:
     return SecretStr(value) if value else None
 
@@ -23,8 +21,6 @@ def _as_secret(value: str | None) -> SecretStr | None:
 # Provider selection
 # settings.llm_provider picks Ollama (default), OpenAI-compatible, or Azure.
 # ---------------------------------------------------------------------------
-
-
 def build_llm(settings: Settings) -> BaseChatModel:
     """Create a chat model from settings."""
     if settings.llm_provider == "openai":

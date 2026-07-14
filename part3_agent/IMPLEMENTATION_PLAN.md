@@ -1,8 +1,8 @@
 # Part 3 — Graph nodes + skill-as-tool (implementation plan)
 
-**Status:** Planned (not yet implemented)  
+**Status:** Implemented  
 **Prerequisite:** Parts 1 and 2 workshop flow stable  
-**Last updated:** 2026-06-30
+**Last updated:** 2026-07-13
 
 This document captures the agreed redesign for Part 3: replace the single ReAct loop (borrowed from Part 1) with a **four-node LangGraph workflow**, and expose playbooks via **skill-as-tool** (`load_skill` / `list_skills`) while keeping `skills/` as the source of truth.
 

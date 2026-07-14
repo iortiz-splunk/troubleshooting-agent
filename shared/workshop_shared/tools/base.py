@@ -11,8 +11,6 @@ from workshop_shared.tools import builtin
 # Tool aggregation
 # Built-ins always included; MCP tools passed in from McpSessionManager at runtime.
 # ---------------------------------------------------------------------------
-
-
 def get_tools(
     settings: Settings,
     *,

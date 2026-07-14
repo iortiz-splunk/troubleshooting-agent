@@ -9,7 +9,6 @@ from typing import Any
 # O11y alert parsing regexes
 # Match sf_service, sf_environment, rule name, and severity from Slack text.
 # ---------------------------------------------------------------------------
-
 _O11Y_SIGNAL_PAIR_RE = re.compile(
     r"\{sf_environment=([^,}]+),\s*sf_service=([^}]+)\}",
     re.IGNORECASE,
@@ -55,14 +54,17 @@ _O11Y_ALERT_ID_LABEL_RE = re.compile(
     r"(?:alert[_\s-]?id|alertId)\s*[:=]\s*([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
+_O11Y_DETECTOR_ID_LABEL_RE = re.compile(
+    r"(?:detector[_\s-]?id|detectorId)\s*[:=]\s*([A-Za-z0-9_-]+)",
+    re.IGNORECASE,
+)
+_O11Y_DETECTOR_URL_RE = re.compile(r"/detector/([A-Za-z0-9_-]+)", re.IGNORECASE)
 _MRKDWN_URL_RE = re.compile(r"<(https?://[^>|]+)(?:\|[^>]+)?>", re.IGNORECASE)
 
 # ---------------------------------------------------------------------------
 # Slack Block Kit text extraction
 # Splunk alerts often use blocks/attachments instead of plain event["text"].
 # ---------------------------------------------------------------------------
-
-
 def _rich_text_value(obj: Any) -> str:
     if isinstance(obj, str):
         return obj.strip()
@@ -185,7 +187,6 @@ def extract_message_text(event: dict[str, Any]) -> str:
 # Resolved / cleared alert detection
 # Skip investigations when Splunk posts "Stopped", "Resolved", "Cleared", etc.
 # ---------------------------------------------------------------------------
-
 _O11Y_RESOLVED_LINE_PREFIXES = (
     "stopped:",
     "resolved:",
@@ -289,8 +290,6 @@ def is_o11y_stopped_alert(text: str) -> bool:
 # Alert context for the agent prompt
 # Parse structured fields and format them for the investigation template.
 # ---------------------------------------------------------------------------
-
-
 def parse_o11y_alert_context(text: str) -> dict[str, str]:
     """Extract service, environment, and rule from Splunk Observability Slack alerts."""
     context: dict[str, str] = {}
@@ -344,6 +343,14 @@ def parse_o11y_alert_context(text: str) -> dict[str, str]:
         if event_url:
             context["event_id"] = event_url.group(1).strip()
 
+    detector_label = _O11Y_DETECTOR_ID_LABEL_RE.search(text)
+    if detector_label:
+        context["detector_id"] = detector_label.group(1).strip()
+    else:
+        detector_url = _O11Y_DETECTOR_URL_RE.search(text)
+        if detector_url:
+            context["detector_id"] = detector_url.group(1).strip()
+
     return context
 
 
@@ -360,6 +367,7 @@ def format_o11y_alert_context(context: dict[str, str]) -> str:
         "alert_id": "Alert ID (O11y UI)",
         "event_id": "Event ID (O11y)",
         "incident_id": "Incident ID",
+        "detector_id": "Detector ID",
     }
     return "\n".join(f"- {labels.get(key, key)}: {value}" for key, value in context.items())
 
@@ -368,8 +376,6 @@ def format_o11y_alert_context(context: dict[str, str]) -> str:
 # Message filter
 # Returns a skip reason string, or None if the listener should investigate.
 # ---------------------------------------------------------------------------
-
-
 def skip_reason(event: dict[str, Any], *, our_bot_user_id: str) -> str | None:
     """Return why an event was ignored, or None if it should be processed."""
     subtype = event.get("subtype")

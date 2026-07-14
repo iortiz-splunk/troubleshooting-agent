@@ -12,6 +12,10 @@ venv/
 # Environment
 .env
 
+# Investigation trace logs (local debugging)
+logs/
+shared/logs/
+
 # Tools
 .ruff_cache/
 .mypy_cache/

@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 # Investigation prompt template
 # Filled with parsed O11y fields and the raw alert text before run_chat().
 # ---------------------------------------------------------------------------
-
 INVESTIGATION_PROMPT = """An Observability alert was posted to Slack. Investigate it using Splunk
 Observability MCP tools (o11y_*). Use the parsed identifiers below when querying alerts, metrics,
 and traces. Summarize findings and recommended next steps.
@@ -107,8 +106,6 @@ def _build_investigation_prompt(alert_text: str) -> str:
 # Slack app setup
 # Resolves the alerts channel, registers the message handler, and returns the app.
 # ---------------------------------------------------------------------------
-
-
 def create_slack_app(settings: Settings) -> tuple[App, str]:
     """Create Bolt app and resolve alerts channel ID."""
     if not settings.slack_bot_token or not settings.slack_signing_secret:
@@ -219,8 +216,6 @@ def create_slack_app(settings: Settings) -> tuple[App, str]:
 # Listener entry points
 # Blocking Socket Mode start for CLI; async wrapper for tests or future use.
 # ---------------------------------------------------------------------------
-
-
 def run_slack_listener(settings: Settings) -> None:
     """Start Socket Mode listener (blocking)."""
     if not settings.slack_app_token:

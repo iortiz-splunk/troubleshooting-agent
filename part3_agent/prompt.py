@@ -15,6 +15,10 @@ Observability tools (when connected):
   params.service_name set to the exact APM service name (not top-level service_name).
 - For time windows, use params.time_range as an object: {"start": "-1h", "stop": "now"}
   (not a bare string like "-1h").
+- APM tools require **params.environment_name** alongside params.service_name.
+- o11y_get_apm_exemplar_traces requires **params.exemplar_type** as one of exactly:
+  ``req``, ``err``, ``rc_err``, or ``lat_buck_`` (latency alerts — note trailing underscore).
+  Do not use values like ``latency``, ``lat_buck``, or ``lat_buck_99``.
 - After tool results arrive, summarize the actual JSON data for the user.
 - For APM alert search, use service_name with the exact service name.
   Do not split hyphenated names into separate keywords.

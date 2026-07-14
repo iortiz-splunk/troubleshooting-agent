@@ -15,12 +15,20 @@ from workshop_shared.observability.otel import init_splunk_otel
 from workshop_shared.slack.doctor import check_slack_health
 
 
+# ---------------------------------------------------------------------------
+# Startup helpers
+# Logging/OTel bootstrap used by chat and slack-listen commands.
+# ---------------------------------------------------------------------------
 def bootstrap_observability(settings: Settings, *, force_trace: bool = False) -> None:
     if settings.agent_log_trace or force_trace:
         setup_logging(settings)
     init_splunk_otel(settings)
 
 
+# ---------------------------------------------------------------------------
+# Doctor commands
+# Shared health checks invoked by troubleshooting-agent doctor / mcp-doctor / slack-doctor.
+# ---------------------------------------------------------------------------
 def check_llm_health(settings: Settings, *, verbose: bool = False) -> None:
     if settings.llm_provider == "openai":
         if verbose:

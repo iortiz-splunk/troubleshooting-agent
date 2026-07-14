@@ -16,8 +16,6 @@ from workshop_shared.mcp.bridge import normalize_tool_call_args
 # Some models (especially Ollama) print tool JSON in message content instead of
 # populating AIMessage.tool_calls. Scan the text for valid tool-call objects.
 # ---------------------------------------------------------------------------
-
-
 def extract_tool_calls_from_text(text: str) -> list[dict[str, Any]]:
     """
     Parse tool call JSON blobs from model text output.
@@ -55,8 +53,6 @@ def extract_tool_calls_from_text(text: str) -> list[dict[str, Any]]:
 # Argument normalization
 # MCP o11y tools expect a top-level "params" object; fix args per tool schema.
 # ---------------------------------------------------------------------------
-
-
 def _normalize_calls(
     tool_calls: list[dict[str, Any]],
     tools_by_name: dict[str, BaseTool],
@@ -84,8 +80,6 @@ def _normalize_calls(
 # AIMessage repair
 # Ensure every assistant message has structured tool_calls LangGraph can execute.
 # ---------------------------------------------------------------------------
-
-
 def ensure_ai_tool_calls(
     message: AIMessage,
     *,

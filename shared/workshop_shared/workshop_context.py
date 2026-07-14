@@ -17,6 +17,10 @@ class WorkshopPartError(RuntimeError):
     """Raised when troubleshooting-agent is not run from a workshop part directory."""
 
 
+# ---------------------------------------------------------------------------
+# Repo discovery
+# Find workshop root and .env by walking up from cwd (works inside part subdirs).
+# ---------------------------------------------------------------------------
 def find_repo_root(*, start: Path | None = None) -> Path:
     """Walk up from cwd to find the repo root (directory containing part*_agent/)."""
     current = (start or Path.cwd()).resolve()
@@ -61,6 +65,10 @@ def detect_workshop_part(*, start: Path | None = None, override: str | None = No
     raise WorkshopPartError(msg)
 
 
+# ---------------------------------------------------------------------------
+# Agent loader
+# Import the correct part1/2/3 run_chat based on detected workshop part.
+# ---------------------------------------------------------------------------
 def load_run_chat(part_name: str):
     """Import and return the run_chat entry point for a workshop part."""
     if part_name == "part1_agent":

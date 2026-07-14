@@ -5,6 +5,7 @@ alert_signals:
   - latency
   - duration
   - p99
+  - slow
 rule_patterns:
   - "*latency*"
   - "*duration*"

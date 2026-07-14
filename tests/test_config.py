@@ -2,7 +2,7 @@
 
 import pytest
 
-from workshop_shared.config import Settings
+from workshop_shared.config import Settings, default_agent_log_dir
 
 
 def test_settings_defaults() -> None:
@@ -13,6 +13,8 @@ def test_settings_defaults() -> None:
     assert settings.llm_temperature == 0.2
     assert settings.enable_splunk_o11y is False
     assert settings.splunk_o11y_tool_prefix == "o11y_"
+    assert settings.agent_log_dir == default_agent_log_dir()
+    assert settings.agent_log_dir.endswith("shared/logs/investigations")
 
 
 def test_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:

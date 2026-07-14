@@ -12,8 +12,6 @@ from workshop_shared.slack.channels import resolve_alerts_channel_id
 # Slack health check
 # Validates bot token, resolves alerts channel, auto-joins on not_in_channel.
 # ---------------------------------------------------------------------------
-
-
 def check_slack_health(settings: Settings) -> tuple[bool, str | None]:
     """
     Verify Slack bot token and alerts channel access.

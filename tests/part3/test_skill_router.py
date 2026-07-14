@@ -21,15 +21,19 @@ def test_load_entry_skill_is_troubleshoot() -> None:
 
 def test_build_system_prompt_injects_troubleshoot_only() -> None:
     base = "Base prompt."
-    prompt, names = build_system_prompt(
+    prompt, names, routing = build_system_prompt(
         base,
         {"rule": "error rate high"},
         "5xx errors spiking",
         skills_dir=SKILLS_DIR,
     )
     assert "Base prompt." in prompt
-    assert "## Active troubleshooting playbook" in prompt
+    assert "## Troubleshooting workflow (graph-enforced)" in prompt
     assert names == ["troubleshoot"]
+    assert routing.domain_skill == "troubleshoot"
+    assert routing.loaded_skills == ["troubleshoot"]
+    assert routing.chars_by_skill["troubleshoot"] > 0
+    assert routing.router == "graph_entry"
     assert "Workflow (mandatory order)" in prompt
     # Orchestration skill names product skills; it should not embed their full bodies.
     assert "## Recommended Workflow" not in prompt

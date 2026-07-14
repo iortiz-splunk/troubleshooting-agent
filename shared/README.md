@@ -70,8 +70,10 @@ Run `slack-listen` on any workshop part after `slack-doctor` passes. Resolved/cl
 
 | Variable | Description |
 |----------|-------------|
-| `AGENT_LOG_TRACE` | Brief structured investigation logs in terminal |
-| `AGENT_LOG_DEBUG` | Verbose tool-arg previews |
+| `AGENT_LOG_TRACE` | Human-readable investigation logs in terminal (default: on) |
+| `AGENT_LOG_DEBUG` | Verbose MCP tool-arg previews in terminal |
+| `AGENT_LOG_DIR` | Per-investigation JSONL files (default: `shared/logs/investigations`; empty to disable) |
+| `LOG_FORMAT` | `text` (default) or `json` for log lines |
 | `ENABLE_SPLUNK_OTEL` | Splunk OTel APM for the agent process |
 | `ENABLE_GALILEO` | Galileo session tracing |
 | `GALILEO_API_KEY` | Galileo API key |
@@ -79,7 +81,34 @@ Run `slack-listen` on any workshop part after `slack-doctor` passes. Resolved/cl
 | `GALILEO_PROJECT` | Project name |
 | `GALILEO_LOG_STREAM` | Log stream name |
 
-Galileo sessions are named from Observability **`eventId`** when available (easy to find in O11y Cloud).
+Galileo sessions are named from Observability **`eventId`** plus the active workshop part (e.g. `slack-alert-HNNiTkcA0AA | part2_agent`).
+
+### What you see in the terminal
+
+With `AGENT_LOG_TRACE=true` (default), every part prints a structured trace:
+
+```text
+══════════════════════════════════════════════════════════════
+ Investigation  chat:abc123  |  part2  |  cli
+──────────────────────────────────────────────────────────────
+ Query: Investigate latency on Verification
+ Skill: latency-spike
+ LLM: ollama  |  MCP tools available: 12
+══════════════════════════════════════════════════════════════
+[1] Skill loaded: latency-spike
+[2] LLM turn 1 — calling tools: o11y_search_alerts_or_incidents
+[3] MCP o11y_search_alerts_or_incidents — OK (2.1 KB) | alerts=1
+[4] LLM turn 2 — composing final response (420 chars)
+──────────────────────────────────────────────────────────────
+ Agent response
+──────────────────────────────────────────────────────────────
+- Alert confirmed ...
+══════════════════════════════════════════════════════════════
+```
+
+Part 3 adds `Graph ▸ identify (start)` lines between ReAct steps. The same events are written to `shared/logs/investigations/<id>.jsonl` for facilitators.
+
+When trace is on, `troubleshooting-agent chat` prints the response in the log block (not duplicated below). Set `AGENT_LOG_TRACE=false` for response-only output.
 
 ## Splunk MCP setup
 
@@ -125,4 +154,6 @@ shared/workshop_shared/
   llm/               # Ollama, OpenAI, Azure factories
   observability/     # logging trace, OTel, Galileo
   agent_registry.py  # wires active part's run_chat for Slack
+shared/logs/
+  investigations/    # JSONL trace files (auto-created; gitignored)
 ```

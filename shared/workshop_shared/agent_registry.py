@@ -12,6 +12,10 @@ RunChatFn = Callable[..., str]
 _run_chat: RunChatFn | None = None
 
 
+# ---------------------------------------------------------------------------
+# Agent registration
+# Each part registers its run_chat on CLI startup; Slack listener uses this indirection.
+# ---------------------------------------------------------------------------
 def register_run_chat(fn: RunChatFn) -> None:
     """Called by each part's CLI on startup to wire Slack -> that part's agent."""
     global _run_chat

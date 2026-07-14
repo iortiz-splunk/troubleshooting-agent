@@ -13,8 +13,6 @@ from workshop_shared.config import Settings
 # Channel resolution
 # Use SLACK_ALERTS_CHANNEL_ID if set; otherwise paginate public channels by name.
 # ---------------------------------------------------------------------------
-
-
 def resolve_alerts_channel_id(settings: Settings, client: WebClient) -> str:
     """Return the configured alerts channel ID."""
     if settings.slack_alerts_channel_id:

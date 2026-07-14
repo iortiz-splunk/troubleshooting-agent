@@ -1,5 +1,6 @@
 """Application settings loaded from environment variables."""
 
+from pathlib import Path
 from typing import Literal
 
 from pydantic import AliasChoices, Field, model_validator
@@ -8,6 +9,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 LlmProvider = Literal["ollama", "openai", "azure_openai"]
 
 
+def default_agent_log_dir() -> str:
+    """Shared investigation log directory (cwd-independent)."""
+    shared_root = Path(__file__).resolve().parents[1]
+    return str(shared_root / "logs" / "investigations")
+
+
+# ---------------------------------------------------------------------------
+# Settings model
+# All env vars (.env) for LLM, MCP, Slack, logging, OTel, and Galileo.
+# ---------------------------------------------------------------------------
 class Settings(BaseSettings):
     """Configuration for the troubleshooting agent."""
 
@@ -168,6 +179,11 @@ class Settings(BaseSettings):
         description="Log format: text or json",
         validation_alias=AliasChoices("log_format", "LOG_FORMAT"),
     )
+    agent_log_dir: str | None = Field(
+        default_factory=default_agent_log_dir,
+        description="Directory for per-investigation JSONL trace files (empty to disable)",
+        validation_alias=AliasChoices("agent_log_dir", "AGENT_LOG_DIR"),
+    )
 
     # Splunk OTel (APM traces — direct ingest; separate from o11y MCP API token)
     enable_splunk_otel: bool = Field(
@@ -315,6 +331,10 @@ class Settings(BaseSettings):
         return self
 
 
+# ---------------------------------------------------------------------------
+# Settings loader
+# Walks up from cwd to find .env so parts can run from part1_agent/, etc.
+# ---------------------------------------------------------------------------
 def get_settings() -> Settings:
     """Load settings from environment, finding .env by walking up from cwd."""
     from workshop_shared.workshop_context import find_env_file

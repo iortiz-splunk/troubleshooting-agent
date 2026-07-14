@@ -1,22 +1,22 @@
 ---
 description: Section comments for readable, navigable Python modules
-globs: src/**/*.py
+globs: shared/**/*.py,part*_agent/**/*.py,tests/**/*.py
 alwaysApply: false
 ---
 
 # Section comments
 
-When adding or editing Python in `src/`, group logical blocks with section headers so non-experts can scan the file.
+When adding or editing Python in this repo, group logical blocks with section headers so workshop participants can scan the file.
 
 ## Format
-
-Use this delimiter before each major section:
 
 ```python
 # ---------------------------------------------------------------------------
 # Section title (short noun phrase)
 # One or two sentences: what this block does and why it exists.
 # ---------------------------------------------------------------------------
+def my_function():
+    ...
 ```
 
 ## When to add sections
@@ -33,3 +33,4 @@ Use this delimiter before each major section:
 - Keep explanations plain English; name the consumer when helpful (e.g. "CLI and Slack call this").
 - Do not restate obvious code (`i += 1  # increment i`).
 - Match existing section style in neighboring files.
+- No blank line between the closing `# ---` line and the code below it.
