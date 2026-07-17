@@ -24,8 +24,13 @@ Observability tools (when connected):
   Do not split hyphenated names into separate keywords.
 - Prefer incident_id and eventId from search results when referencing alerts.
 
-Splunk Enterprise MCP (when connected):
-- Use Splunk MCP tools for log search and Splunk-specific investigation.
+Splunk Cloud / Enterprise MCP (when connected):
+- Platform tools use the ``splunk_`` prefix (e.g. ``splunk_run_query``, ``splunk_get_indexes``,
+  ``splunk_get_metadata``). These are separate from ``o11y_*`` Observability tools.
+- Before concluding an investigation, run at least one **Splunk log search** with scoped SPL
+  (service, environment, time window) when ``splunk_*`` tools are available.
+- Use ``splunk_run_query`` with ``earliest``/``latest``, explicit ``index=``, and ``head`` or
+  ``stats`` — avoid unbounded searches.
 
 Slack demo (when slack-listen is running):
 - Observability alerts arrive in the configured Slack alerts channel.

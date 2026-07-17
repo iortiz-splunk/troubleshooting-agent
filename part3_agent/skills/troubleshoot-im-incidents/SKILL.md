@@ -53,7 +53,7 @@ After scoped metrics, **explicitly consider** whether a **dependency or caller c
 - **o11y_search_alerts_or_incidents** or **get-alerts-or-incidents** to load the alert payload (`originatingMetric`, `customProperties`, `incidentId`, `detectorId`, `link`).
 - **o11y_get_metric_names** / **o11y_execute_signalflow_program** (or **o11y_generate_signalflow_program** **then** execute after validation) for the firing metric and key dimensions from the alert; add **adjacent** signals on the same entity (e.g. CPU + throttling + memory + **network I/O or errors** on the same `k8s.pod.name` / `k8s.node.name`). For a quick menu of commonly monitored IM metrics—including **network**—see [reference.md](reference.md); **confirm names in your org** with `o11y_get_metric_names`.
 - **Dependency / demand** — follow [Dependency and demand-side checks](#dependency-and-demand-side-checks-required-when-plausible).
-- **Splunk MCP**: search logs for the host/pod/container in the incident window; include K8s events if available.
+- **search-logs** (required): **`splunk_run_query`** for host/pod/container logs in the incident window; include K8s events if indexed. See **search-logs** skill for SPL patterns.
 - Narrow time range and add dimensions (cluster, namespace, workload, node) as scope tightens.
 
 ## Final step

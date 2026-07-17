@@ -19,7 +19,11 @@ from typing_extensions import TypedDict
 from part3_agent.prompt import SYSTEM_PROMPT
 from part3_agent.skill_categorizer import categorize_alert
 from part3_agent.skill_router import ENTRY_SKILL_NAME
-from part3_agent.skill_tools import format_skill_for_prompt, load_skill_content
+from part3_agent.skill_tools import (
+    format_log_index_catalog_for_product,
+    format_skill_for_prompt,
+    load_skill_content,
+)
 from workshop_shared.config import Settings
 from workshop_shared.observability.logging_trace import (
     log_node_enter,
@@ -34,6 +38,7 @@ from workshop_shared.slack.alert_resolve import fetch_alert_payload
 
 _logger = logging.getLogger(__name__)
 INVESTIGATE_RECURSION_LIMIT = 25
+LOG_SEARCH_SKILL = "search-logs"
 
 # ---------------------------------------------------------------------------
 # Graph state
@@ -114,6 +119,66 @@ def _alert_mcp_params(
     return {"service_name": service, "environment_name": environment}
 
 
+def _alert_time_hint(alert: dict[str, Any] | None) -> str:
+    if not alert:
+        return ""
+    for key in (
+        "anomaly_state_update_iso_8601_date_time",
+        "anomalyStateUpdateTime",
+        "timestamp",
+    ):
+        value = alert.get(key)
+        if value:
+            return str(value).strip()
+    return ""
+
+
+def _log_search_hints(
+    alert: dict[str, Any] | None,
+    investigation_metadata: dict[str, str] | None,
+    product_type: str | None,
+) -> str:
+    mcp_params = _alert_mcp_params(alert, investigation_metadata)
+    alert_time = _alert_time_hint(alert)
+    k8s_parts: list[str] = []
+    if alert:
+        props = alert.get("customProperties")
+        if isinstance(props, dict):
+            for key in (
+                "k8s.namespace.name",
+                "k8s.pod.name",
+                "k8s.workload.name",
+                "k8s.node.name",
+                "host.name",
+            ):
+                value = props.get(key)
+                if value:
+                    k8s_parts.append(f"{key}={value}")
+
+    catalog_hint = format_log_index_catalog_for_product(
+        product_type,
+        service_name=mcp_params["service_name"],
+    )
+
+    lines = [
+        "\n\nSplunk log search (REQUIRED before concluding when splunk_* MCP tools are available):",
+        "- Run search-logs playbook: use log index catalog first → splunk_run_query with scoped SPL.",
+        f"- service filter: {mcp_params['service_name'] or '(from alert sf_service)'}",
+        f"- environment filter: {mcp_params['environment_name'] or '(from alert sf_environment)'}",
+    ]
+    if alert_time:
+        lines.append(f"- alert time (center SPL window): {alert_time}")
+    if k8s_parts:
+        lines.append(f"- infra tags: {', '.join(k8s_parts)}")
+    if catalog_hint:
+        lines.append(f"\n{catalog_hint}")
+    else:
+        lines.append(
+            "- if index unknown: splunk_get_indexes then splunk_get_metadata before splunk_run_query"
+        )
+    return "\n".join(lines)
+
+
 def _investigate_user_content(
     *,
     user_text: str,
@@ -138,6 +203,7 @@ def _investigate_user_content(
             "If a tool returns a validation error, fix the param and retry once; "
             "then continue with other tools and summarize."
         )
+    hints += _log_search_hints(alert, investigation_metadata, product_type)
     return (
         f"Investigate this alert.\n\nUser request:\n{user_text}\n\n"
         f"Alert payload:\n{alert_text}{hints}"
@@ -218,8 +284,10 @@ def build_part3_graph(
 ) -> StateGraph[Part3State, None, Part3State, Part3State]:
     get_alerts_skill = format_skill_for_prompt("get-alerts-or-incidents")
     report_skill = format_skill_for_prompt("troubleshoot-report")
+    log_search_skill = format_skill_for_prompt(LOG_SEARCH_SKILL)
     get_alerts_chars = len(get_alerts_skill)
     report_chars = len(report_skill)
+    log_search_chars = len(log_search_skill)
 
     identify_prompt = (
         f"{base_prompt}\n\n## Identify alert (step 1)\n\n"
@@ -233,12 +301,18 @@ def build_part3_graph(
         tools_node_name="identify_tools",
     ).compile()
 
-    def _investigate_prompt(skill_name: str) -> str:
+    def _investigate_prompt(skill_name: str, product_type: str | None = None) -> str:
         playbook = load_skill_content(skill_name) or ""
+        log_playbook = log_search_skill
+        catalog_block = format_log_index_catalog_for_product(product_type)
+        catalog_section = f"\n\n### Index catalog\n\n{catalog_block}" if catalog_block else ""
         return (
             f"{base_prompt}\n\n## Investigate (step 3)\n\n"
             f"Product playbook ({skill_name}):\n\n{playbook}\n\n"
-            "Use MCP tools to gather evidence and summarize findings."
+            f"## Log search (required before concluding)\n\n{log_playbook}"
+            f"{catalog_section}\n\n"
+            "Gather O11y evidence, then run Splunk log search (splunk_run_query) "
+            "using the index catalog before summarizing findings."
         )
 
     async def identify_node(state: Part3State, config: RunnableConfig) -> dict[str, Any]:
@@ -365,6 +439,10 @@ def build_part3_graph(
         skill_name = state["skill_name"]
         assert skill_name is not None
         skills_loaded = _append_skill_loaded(state, skill_name)
+        skills_loaded = _append_skill_loaded(
+            {**state, "skills_loaded": skills_loaded},
+            LOG_SEARCH_SKILL,
+        )
         updates["skills_loaded"] = skills_loaded
 
         node_config = _node_config(
@@ -380,9 +458,17 @@ def build_part3_graph(
             chars=playbook_chars,
             detail=f"product_type={state.get('product_type')}",
         )
+        await emit_skill_load(
+            node_config,
+            skill_name=LOG_SEARCH_SKILL,
+            role="investigate",
+            chars=log_search_chars,
+            detail="required Splunk log search before concluding",
+        )
         log_skill_injected(skill_name=skill_name)
+        log_skill_injected(skill_name=LOG_SEARCH_SKILL)
 
-        prompt = _investigate_prompt(skill_name)
+        prompt = _investigate_prompt(skill_name, product_type=state.get("product_type"))
         investigate_subgraph = build_react_subgraph(
             llm,
             tools,

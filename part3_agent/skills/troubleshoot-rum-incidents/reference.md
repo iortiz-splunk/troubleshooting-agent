@@ -37,7 +37,7 @@ If the **APM** environment name differs from the RUM label, use **service names*
 
 - Scope **time** to the **RUM** spike window (**UTC**).
 - Prefer **structured** filters: **sourcetype**, **host**, **pod**, **service** from APM traces or Kubernetes metadata.
-- **Workspace** `AGENTS.md` lists **indexes** and **`kube:container:*`** patterns for this environment.
+- **search-logs/indexes.md** lists **indexes** and **`kube:container:*`** patterns for this environment.
 
 ## Related skills
 

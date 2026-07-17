@@ -39,7 +39,7 @@ If series are **empty**, widen **time**, confirm **metric name** spelling, or us
 |--------|-------------|
 | **APM** | The check hits an **HTTP**/**API** you own — map **URL/host** to **service** + **`sf_environment`**; **`o11y_get_apm_services`**, **latency**, **exemplar traces** / **`o11y_get_apm_trace_tool`** in the **failure window**. Use **troubleshoot-apm-incidents** for deep service analysis. |
 | **IM** | Suspect **probe-side network**, **DNS**, **regional** reachability, or **target host** saturation — **host**, **k8s**, **network** metrics (**troubleshoot-im-incidents**), aligned by **time** and **target** if known. |
-| **Logs (Splunk MCP)** | **Application** or **gateway** logs for the **target** during failures — scope **`_time`**, use **index/sourcetype** from **`AGENTS.md`**; filter by **service**, **pod**, **path**, or **status** to match the check. |
+| **Logs (Splunk MCP)** | **Required before concluding** — apply **search-logs**: **`splunk_run_query`** for **target** app/gateway logs during failures; scope time, index, service, pod, path, or status. |
 
 Synthetics proves **reachability and timing** from **outside-in**; **APM/IM/logs** explain **why** the **stack** misbehaved.
 

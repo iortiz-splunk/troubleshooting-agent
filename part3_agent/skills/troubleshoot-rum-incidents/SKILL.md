@@ -42,15 +42,14 @@ Apply **troubleshoot-apm-incidents** when the investigation shifts to **service 
 
 ---
 
-## 4. Logs (Splunk MCP)
+## 4. Logs (Splunk MCP) — required before concluding
 
-When you need **backend or infra** context (errors, deploys, **gateway** logs) in the **same time window** as the RUM spike, use the **Splunk MCP server** (or platform search) to:
+Apply **search-logs** when **`splunk_*` MCP tools** are connected. Use **`splunk_run_query`** with SPL scoped to the **RUM anomaly window** (UTC) and backend context from §3:
 
-- Restrict **`_time`** to the **RUM anomaly window** (UTC).
-- Narrow by **index** / **sourcetype** per project (e.g. **`kube:container:*`** for app pods, **`httpevent`** for HTTP) — see **`AGENTS.md`** in this repo for index/sourcetype hints.
-- Correlate by **service name**, **pod**, **host**, or **trace** IDs if you pulled them from **APM**.
+- Narrow by **index** / **sourcetype** (e.g. **`kube:container:*`**, **`httpevent`**) — use **`splunk_get_metadata`** if unknown.
+- Correlate by **service name**, **pod**, **host**, **trace IDs** from APM, or **`deployment.environment`**.
 
-Use logs to **confirm** or **rule out** API failures, **regional** routing issues, **deployment** timing, **not** as a substitute for **RUM** for front-end–only issues.
+**Do not** finish without at least one log search attempt (or an explicit note that Splunk MCP was unavailable).
 
 ---
 

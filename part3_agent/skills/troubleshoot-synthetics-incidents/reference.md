@@ -30,7 +30,7 @@ Use when failures are **regional**, **intermittent**, or tied to **specific prob
 
 ## Splunk logs
 
-Same **UTC window** as failing runs. Prefer **structured** filters; see workspace **`AGENTS.md`** for **indexes** and **kube** / **httpevent** sourcetypes.
+Same **UTC window** as failing runs. Prefer **structured** filters; see **search-logs/indexes.md** for **indexes** and **kube** / **httpevent** sourcetypes.
 
 ## Related skills
 

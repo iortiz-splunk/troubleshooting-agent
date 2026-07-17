@@ -34,6 +34,19 @@ START → identify → categorize → investigate → report → END
 | `skill_categorizer.py` | Alert → product type (no LLM) |
 | `skill_router.py` | Base prompt + troubleshoot overview |
 | `skills/` | Playbook library (source of truth) |
+| `skills/search-logs/indexes.md` | Splunk index/sourcetype catalog for the workshop tenant |
+
+## Log index catalog
+
+The investigate node injects **`search-logs/indexes.md`** (YAML frontmatter + tables) so the agent searches the right index first — e.g. `splunk4rookies-workshop` instead of `main` on **o11y-workshop-amer**.
+
+To refresh for a new tenant:
+
+1. Connect Splunk Cloud MCP (`splunk_get_indexes`, `splunk_run_query`).
+2. Copy [skills/search-logs/indexes.example.md](skills/search-logs/indexes.example.md) → `indexes.md`.
+3. Fill in index volumes, sourcetypes, and example SPL from discovery queries.
+4. Run `pytest tests/part3/test_skill_tools.py -k catalog`.
+
 
 ## Skills at runtime
 
@@ -41,7 +54,7 @@ START → identify → categorize → investigate → report → END
 |------|----------------|
 | identify | `get-alerts-or-incidents` (preloaded into identify prompt) |
 | categorize | rules from `troubleshoot/reference.md` (code) |
-| investigate | `troubleshoot-{apm,im,rum,synthetics}-incidents` (code-loaded by product) |
+| investigate | `troubleshoot-{apm,im,rum,synthetics}-incidents` + **search-logs** (code-loaded by product) |
 | report | `troubleshoot-report` (code-loaded) |
 
 ## Galileo / observability

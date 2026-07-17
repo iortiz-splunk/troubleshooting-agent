@@ -36,6 +36,7 @@ Copy this checklist and complete it:
 - [ ] **1. Identify** — Full alert payload (or documented failure to load); see §1.
 - [ ] **2. Categorize** — IM / APM / RUM / Synthetics; see §2 and [reference.md](reference.md).
 - [ ] **3. Execute** — **troubleshoot-apm-incidents**, **troubleshoot-im-incidents**, or RUM/Synthetics path.
+- [ ] **3b. Logs** — **search-logs** via Splunk MCP (`splunk_run_query`) before concluding; required when `splunk_*` tools are connected.
 - [ ] **4. Report** — **troubleshoot-report** (required every time, including partial investigations).
 
 ---

@@ -11,10 +11,12 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphRecursionError
 from part3_agent.graph import (
+    LOG_SEARCH_SKILL,
     _alert_mcp_params,
     _investigate_user_content,
     build_part3_graph,
 )
+from part3_agent.skill_tools import load_skill_content
 
 from workshop_shared.config import Settings
 
@@ -167,6 +169,28 @@ def test_investigate_user_content_includes_apm_hints() -> None:
     assert "params.service_name: Verification" in content
     assert "params.environment_name: Brian-E-AD-Capital" in content
     assert "lat_buck_" in content
+    assert "splunk_run_query" in content
+    assert "Splunk log search (REQUIRED" in content
+
+
+def test_search_logs_skill_loads() -> None:
+    content = load_skill_content(LOG_SEARCH_SKILL)
+    assert content is not None
+    assert "splunk_run_query" in content
+    assert "required before concluding" in content.lower()
+    assert "splunk4rookies-workshop" in content or "catalog" in content.lower()
+
+
+def test_investigate_user_content_includes_index_catalog() -> None:
+    content = _investigate_user_content(
+        user_text="investigate latency",
+        alert={"sf_service": "Verification", "sf_environment": "Brian-E-AD-Capital"},
+        investigation_metadata=None,
+        product_type="apm",
+    )
+    assert "splunk4rookies-workshop" in content
+    assert "Log index catalog" in content
+    assert "index=main" not in content
 
 
 @pytest.mark.asyncio
