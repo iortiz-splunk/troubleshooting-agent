@@ -1,0 +1,24 @@
+<aside class="sidebar">
+  <a class="sidebar__back" href="{{ .Site.Home.RelPermalink }}">&lt; Workshop</a>
+  <div class="sidebar__title">{{ .Site.Params.workshopTitle }}</div>
+  <nav>
+    <ul class="sidebar__nav">
+      {{ $pages := slice .Site.Home }}
+      {{ range .Site.RegularPages.ByWeight }}
+        {{ $pages = $pages | append . }}
+      {{ end }}
+      {{ range $pages }}
+      {{ $isActive := eq $.RelPermalink .RelPermalink }}
+      <li class="sidebar__item">
+        <a
+          class="sidebar__link{{ if $isActive }} is-active{{ end }}"
+          href="{{ .RelPermalink }}"
+        >
+          <span class="sidebar__number">{{ .Params.chapter | default .Weight }}.</span>
+          <span>{{ .Title }}</span>
+        </a>
+      </li>
+      {{ end }}
+    </ul>
+  </nav>
+</aside>

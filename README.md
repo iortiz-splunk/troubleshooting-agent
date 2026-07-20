@@ -66,6 +66,19 @@ ruff check shared part1_agent part2_agent part3_agent tests
 
 ## Documentation
 
+Participant-facing workshop instructions are published at:
+
+**https://iortiz-splunk.github.io/troubleshooting-agent/**
+
+To preview locally (requires [Hugo Extended](https://gohugo.io/installation/)):
+
+```bash
+cd docs
+hugo server -D --config hugo.toml,config/local.toml
+```
+
+Open http://localhost:1313/
+
 - **[shared/README.md](shared/README.md)** — LLM, Splunk MCP, Slack, Galileo, OTel setup
 - **[part1_agent/README.md](part1_agent/README.md)** — baseline exercise
 - **[part2_agent/README.md](part2_agent/README.md)** — skill wiring exercises

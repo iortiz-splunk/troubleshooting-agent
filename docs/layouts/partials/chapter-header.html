@@ -1,0 +1,28 @@
+<header class="chapter-header">
+  <div class="chapter-header__label">Chapter</div>
+  <div class="chapter-header__numeral" aria-hidden="true">{{ .Params.chapter | default .Weight | default 1 }}</div>
+  <h1 class="chapter-header__title">{{ .Title }}</h1>
+  {{ with .Params.description }}
+  <p class="chapter-header__description">{{ . }}</p>
+  {{ end }}
+  <div class="chapter-header__meta">
+    {{ with .Params.duration }}
+    <span class="chapter-header__meta-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      {{ . }}
+    </span>
+    {{ end }}
+    {{ with .Params.author }}
+    <span class="chapter-header__meta-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      Author: {{ . }}
+    </span>
+    {{ end }}
+  </div>
+</header>
