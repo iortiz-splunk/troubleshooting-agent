@@ -90,6 +90,7 @@ If SSH might disconnect during install, run inside `tmux` or `screen` so the ins
 cd ~/troubleshooting-agent
 python3 -m venv .venv
 source .venv/bin/activate
+python3 -m pip install --upgrade pip
 pip install -r requirements-workshop.txt
 pip install -e . --no-deps
 ```
