@@ -31,7 +31,7 @@ All three parts use the same command — `troubleshooting-agent` — from their 
 
 Before starting, make sure you have:
 
-- **Python 3.11+** and **Node.js** with `npx` (for Splunk MCP)
+- **Python 3.10+** and **Node.js** with `npx` (for Splunk MCP)
 - An EC2 instance from the workshop (see [Connect to EC2](/troubleshooting-agent/3-connect-ec2/))
 - Workshop credentials exported as **EC2 environment variables** (LLM, Splunk MCP, Galileo API — provided by facilitators)
 
