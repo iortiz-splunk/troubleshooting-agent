@@ -21,13 +21,18 @@ dependencies = [
 
 [project.scripts]
 troubleshooting-agent = "workshop_shared.cli:app"
+mcp-load-test = "mcp_load_runner.cli:main"
 
 [project.optional-dependencies]
 dev = [
-    "mypy>=1.13",
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24",
-    "ruff>=0.8",
+    "mypy>=1.13,<2",
+    "pytest>=8.0,<10",
+    "pytest-asyncio>=0.24,<2",
+    "ruff>=0.16,<0.17",
+]
+loadtest = [
+    "streamlit>=1.30",
+    "pandas>=2.0",
 ]
 observability = [
     "splunk-opentelemetry>=2.11",
@@ -46,12 +51,16 @@ packages = [
     "part1_agent",
     "part2_agent",
     "part3_agent",
+    "tools/mcp_load_runner",
 ]
+
+[tool.hatch.build.targets.wheel.sources]
+"tools/mcp_load_runner" = "mcp_load_runner"
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["shared", "part1_agent", "part2_agent", "part3_agent", "tests"]
+src = ["shared", "part1_agent", "part2_agent", "part3_agent", "tests", "tools/mcp_load_runner"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
