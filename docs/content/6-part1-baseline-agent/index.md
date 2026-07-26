@@ -88,10 +88,10 @@ The same events are written to `shared/logs/investigations/<id>.jsonl` for post-
 
 ## Review the run in Galileo
 
-After your chat completes, open the Galileo console (URL from your `.env` — typically the multitenant workshop console) and navigate to:
+After your chat completes, open the **Galileo console** and navigate to:
 
-1. **Project** — the name you set (`workshop-<your-instance>`)
-2. **Log stream** — the name you set (`part1-<your-instance>`)
+1. **Project** — the name you set (for example, `sre-agent-wkshp-shw-2cb1`)
+2. **Log stream** — `sre-agent-wkshp`
 3. **Sessions** — find the most recent session (named `chat:... | part1_agent`)
 
 Expand the trace tree. In Part 1 you should see:
