@@ -1,14 +1,17 @@
 baseURL = 'https://iortiz-splunk.github.io/troubleshooting-agent/'
 languageCode = 'en-us'
-title = 'Workshop'
+title = 'Troubleshooting Agent Workshop'
 enableRobotsTXT = true
 disableKinds = ['taxonomy', 'term']
 
 [markup]
   [markup.highlight]
     noClasses = false
+  [markup.goldmark.renderer]
+    unsafe = true
 
 [params]
   brandColor = '#B01E5D'
   workshopTitle = 'Troubleshooting Agent Workshop'
   fontStack = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  otelCollectorChartVersion = '0.118.0'
