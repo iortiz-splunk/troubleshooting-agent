@@ -1,0 +1,22 @@
+<header class="workshop-hero">
+  <div class="chapter-header__workshop">
+    <span class="chapter-header__workshop-line" aria-hidden="true"></span>
+    <span class="chapter-header__workshop-name">{{ .Site.Params.workshopTitle }}</span>
+  </div>
+  <h1 class="workshop-hero__title">{{ .Site.Params.workshopTitle }}</h1>
+  {{ with .Params.description }}
+  <p class="workshop-hero__description">{{ . }}</p>
+  {{ end }}
+  {{ with .Params.duration }}
+  <div class="chapter-header__meta">
+    <span class="chapter-header__meta-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      {{ . }}
+    </span>
+  </div>
+  {{ end }}
+  <div class="section-divider" aria-hidden="true"></div>
+</header>

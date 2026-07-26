@@ -1,0 +1,4 @@
+{{ $title := .Get "title" | default "Tab" }}
+<div class="code-tabs__source" data-title="{{ $title }}"{{ if eq (.Get "open") "true" }} data-default="true"{{ end }}>
+  {{ .Inner | .Page.RenderString }}
+</div>

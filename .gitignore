@@ -31,3 +31,7 @@ htmlcov/
 
 # uv
 uv.lock
+
+# Hugo
+docs/public/
+docs/resources/

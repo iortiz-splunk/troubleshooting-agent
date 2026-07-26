@@ -1,0 +1,40 @@
+<header class="chapter-header">
+  {{ $stepNum := 0 }}
+  {{ $stepLabel := .Params.navTitle | default .Title }}
+  {{ range $i, $p := .Site.RegularPages.ByWeight }}
+    {{ if eq $p.RelPermalink $.RelPermalink }}
+      {{ $stepNum = add $i 1 }}
+    {{ end }}
+  {{ end }}
+  {{ if gt $stepNum 0 }}
+  <div class="chapter-header__step">{{ $stepNum }}. {{ $stepLabel | upper }}</div>
+  {{ end }}
+  <div class="chapter-header__workshop">
+    <span class="chapter-header__workshop-line" aria-hidden="true"></span>
+    <span class="chapter-header__workshop-name">{{ .Site.Params.workshopTitle }}</span>
+  </div>
+  <h1 class="chapter-header__title">{{ .Title }}</h1>
+  {{ if or .Params.duration .Params.author }}
+  <div class="chapter-header__meta">
+    {{ with .Params.duration }}
+    <span class="chapter-header__meta-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      {{ . }}
+    </span>
+    {{ end }}
+    {{ with .Params.author }}
+    <span class="chapter-header__meta-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      {{ . }}
+    </span>
+    {{ end }}
+  </div>
+  {{ end }}
+  <div class="section-divider" aria-hidden="true"></div>
+</header>

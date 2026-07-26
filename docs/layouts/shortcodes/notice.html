@@ -1,0 +1,15 @@
+{{/*
+  Usage:
+  {{< notice title="Note" style="primary" >}}
+  Markdown content here.
+  {{< /notice >}}
+
+  style: primary | green | tip
+  Place diagrams and code blocks outside the notice, not inside.
+*/}}
+<div class="notice notice--{{ .Get "style" | default "primary" }}">
+  {{ with .Get "title" }}
+  <div class="notice__title">{{ . }}</div>
+  {{ end }}
+  <div class="notice__body">{{ .Inner | .Page.RenderString }}</div>
+</div>

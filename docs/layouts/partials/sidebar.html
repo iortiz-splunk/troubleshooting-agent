@@ -1,0 +1,26 @@
+<aside class="sidebar">
+  <a class="sidebar__title" href="{{ .Site.Home.RelPermalink }}">{{ .Site.Params.workshopTitle }}</a>
+  {{ $pages := .Site.RegularPages.ByWeight }}
+  {{ if $pages }}
+  <nav aria-label="Workshop steps">
+    <ul class="sidebar__nav">
+      {{ range $i, $page := $pages }}
+      {{ $isActive := eq $.RelPermalink $page.RelPermalink }}
+      <li class="sidebar__item">
+        <a
+          class="sidebar__link{{ if $isActive }} is-active{{ end }}"
+          href="{{ $page.RelPermalink }}"
+          {{ if $isActive }}aria-current="page"{{ end }}
+        >
+          <span class="sidebar__number">{{ add $i 1 }}</span>
+          <span class="sidebar__label">{{ $page.Params.navTitle | default $page.Title }}</span>
+        </a>
+      </li>
+      {{ end }}
+    </ul>
+  </nav>
+  <div class="sidebar__progress">
+    <span class="sidebar__progress-label">{{ len $pages }} {{ if eq (len $pages) 1 }}step{{ else }}steps{{ end }}</span>
+  </div>
+  {{ end }}
+</aside>

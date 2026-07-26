@@ -1,0 +1,25 @@
+{{ $lang := .Type | default "text" }}
+{{ $inner := .Inner }}
+{{ $alreadyHighlighted := or (strings.Contains $inner "<pre") (strings.Contains $inner "class=\"chroma\"") }}
+{{ $body := $inner }}
+{{ if not $alreadyHighlighted }}
+  {{ $body = highlight $inner $lang (dict "lineNumbersInTable" false "noClasses" false) }}
+{{ end }}
+<div class="code-block">
+  <div class="code-block__header">
+    <span class="code-block__lang">
+      <span class="code-block__lang-dot" aria-hidden="true"></span>
+      {{ upper $lang }}
+    </span>
+    <button type="button" class="code-block__copy" aria-label="Copy code">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <rect x="9" y="9" width="13" height="13" rx="2"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+      Copy
+    </button>
+  </div>
+  <div class="code-block__content">
+    {{ $body | safeHTML }}
+  </div>
+</div>

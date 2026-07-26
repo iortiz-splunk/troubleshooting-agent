@@ -1,0 +1,16 @@
+{{/*
+  Usage:
+  {{< diagram src="images/ai-agent-components.svg" alt="Description" caption="Optional caption" >}}
+*/}}
+<figure class="diagram">
+  <img
+    src="{{ (.Get "src") | relURL }}"
+    alt="{{ .Get "alt" | default "" }}"
+    {{ with .Get "width" }}width="{{ . }}"{{ else }}width="720"{{ end }}
+    loading="lazy"
+    decoding="async"
+  />
+  {{ with .Get "caption" }}
+  <figcaption>{{ . }}</figcaption>
+  {{ end }}
+</figure>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ if and .Title (not .IsHome) }}{{ .Title }} | {{ end }}{{ .Site.Params.workshopTitle }}</title>
+  {{ with .Description }}<meta name="description" content="{{ . }}">{{ end }}
+  {{ $css := resources.Get "css/main.css" | minify | fingerprint }}
+  <link rel="stylesheet" href="{{ $css.RelPermalink }}">
+  {{ $js := resources.Get "js/workshop.js" | minify | fingerprint }}
+  <script src="{{ $js.RelPermalink }}" defer></script>
+</head>
+<body>
+  {{ partial "header.html" . }}
+  <div class="layout-body">
+    {{ partial "sidebar.html" . }}
+    <main class="main-content">
+      {{ if .IsHome }}
+        {{ partial "workshop-hero.html" . }}
+      {{ else }}
+        {{ partial "chapter-header.html" . }}
+      {{ end }}
+      <div class="prose">
+        {{ block "main" . }}{{ end }}
+      </div>
+    </main>
+  </div>
+</body>
+</html>
