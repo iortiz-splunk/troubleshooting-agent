@@ -15,14 +15,19 @@ node_major() {
   node --version | sed -E 's/^v([0-9]+).*/\1/'
 }
 
-remove_conflicting_node_packages() {
-  # Ubuntu's nodejs 12 packages (especially libnode-dev) block NodeSource nodejs 20.
-  echo "Removing conflicting Ubuntu Node.js packages (if present)..."
-  sudo apt-get remove -y --purge \
-    nodejs npm libnode-dev libnode72 nodejs-doc 2>/dev/null || true
-  sudo apt-get autoremove -y
+repair_dpkg_state() {
+  echo "Repairing dpkg state (safe if a prior Node install was interrupted)..."
   sudo dpkg --configure -a || true
   sudo apt-get -f install -y
+}
+
+remove_conflicting_node12_packages() {
+  # Ubuntu nodejs 12 packages (especially libnode-dev) block NodeSource nodejs 20.
+  echo "Removing conflicting Ubuntu Node.js 12 packages (if present)..."
+  sudo apt-get remove -y --purge \
+    nodejs npm libnode-dev libnode72 nodejs-doc || true
+  sudo apt-get autoremove -y
+  repair_dpkg_state
 }
 
 install_node_20() {
@@ -30,9 +35,22 @@ install_node_20() {
     sudo apt-get update
     sudo apt-get install -y curl ca-certificates
   fi
-  remove_conflicting_node_packages
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-  sudo apt-get install -y nodejs
+
+  remove_conflicting_node12_packages
+
+  if [ ! -f /etc/apt/sources.list.d/nodesource.list ] \
+    && [ ! -f /etc/apt/sources.list.d/nodesource.sources ]; then
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  else
+    echo "NodeSource repository already configured."
+    sudo apt-get update
+  fi
+
+  if ! sudo apt-get install -y nodejs; then
+    echo "Node.js 20 install failed — retrying after cleanup..."
+    remove_conflicting_node12_packages
+    sudo apt-get install -y nodejs
+  fi
 }
 
 major="$(node_major)"
