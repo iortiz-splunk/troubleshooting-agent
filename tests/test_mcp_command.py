@@ -34,9 +34,32 @@ def test_npx_availability_error_none_when_present(
     npx = tmp_path / "npx"
     npx.write_text("#!/bin/sh\n")
     npx.chmod(0o755)
+    node = tmp_path / "node"
+    node.write_text("#!/bin/sh\necho v20.0.0\n")
+    node.chmod(0o755)
     monkeypatch.setattr(
         "workshop_shared.mcp.command.shutil.which",
-        lambda cmd: str(npx) if cmd == "npx" else None,
+        lambda cmd: str(npx) if cmd == "npx" else (str(node) if cmd == "node" else None),
+    )
+    monkeypatch.setattr(
+        "workshop_shared.mcp.command.subprocess.run",
+        lambda *args, **kwargs: type("Completed", (), {"returncode": 0, "stdout": "v20.0.0\n"})(),
     )
     settings = Settings(mcp_npx_command="npx")
     assert npx_availability_error(settings) is None
+
+
+def test_npx_availability_error_when_node_too_old(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "workshop_shared.mcp.command.shutil.which",
+        lambda cmd: "/usr/bin/npx" if cmd == "npx" else "/usr/bin/node",
+    )
+    monkeypatch.setattr(
+        "workshop_shared.mcp.command.subprocess.run",
+        lambda *args, **kwargs: type("Completed", (), {"returncode": 0, "stdout": "v12.22.9\n"})(),
+    )
+    settings = Settings(mcp_npx_command="npx")
+    error = npx_availability_error(settings)
+    assert error is not None
+    assert "too old" in error
+    assert "18" in error
