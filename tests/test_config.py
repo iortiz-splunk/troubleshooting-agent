@@ -30,14 +30,13 @@ def test_enable_o11y_requires_credentials() -> None:
         Settings(enable_splunk_o11y=True)
 
 
-def test_enable_splunk_cloud_mcp_requires_credentials() -> None:
-    with pytest.raises(ValueError, match="SPLUNK_CLOUD_MCP"):
-        Settings(enable_splunk_cloud_mcp=True)
-
-
-def test_enable_splunk_mcp_requires_credentials() -> None:
-    with pytest.raises(ValueError, match="SPLUNK_MCP"):
-        Settings(enable_splunk_mcp=True)
+def test_enable_o11y_auto_enables_when_credentials_present() -> None:
+    settings = Settings(
+        splunk_o11y_gateway_url="https://gw.example/",
+        splunk_o11y_realm="us1",
+        splunk_o11y_api_token="token",
+    )
+    assert settings.enable_splunk_o11y is True
 
 
 def test_auto_detect_openai_provider() -> None:
@@ -77,9 +76,19 @@ def test_azure_openai_requires_credentials() -> None:
         Settings(llm_provider="azure_openai")
 
 
-def test_enable_slack_requires_tokens() -> None:
-    with pytest.raises(ValueError, match="SLACK"):
-        Settings(enable_slack=True)
+def test_enable_slack_disabled_when_credentials_missing() -> None:
+    settings = Settings(enable_slack=True)
+    assert settings.enable_slack is False
+
+
+def test_enable_slack_stays_enabled_with_credentials() -> None:
+    settings = Settings(
+        enable_slack=True,
+        slack_bot_token="xoxb-test",
+        slack_app_token="xapp-test",
+        slack_signing_secret="secret",
+    )
+    assert settings.enable_slack is True
 
 
 def test_enable_slack_settings_valid() -> None:
@@ -93,9 +102,32 @@ def test_enable_slack_settings_valid() -> None:
     assert settings.agent_log_trace is True
 
 
-def test_enable_splunk_otel_requires_ingest_token() -> None:
-    with pytest.raises(ValueError, match="SPLUNK_ACCESS_TOKEN"):
-        Settings(enable_splunk_otel=True)
+def test_enable_splunk_mcp_disabled_when_credentials_missing() -> None:
+    settings = Settings(enable_splunk_mcp=True)
+    assert settings.enable_splunk_mcp is False
+
+
+def test_enable_splunk_cloud_mcp_disabled_when_credentials_missing() -> None:
+    settings = Settings(enable_splunk_cloud_mcp=True)
+    assert settings.enable_splunk_cloud_mcp is False
+
+
+def test_enable_splunk_otel_disabled_when_token_missing() -> None:
+    settings = Settings(enable_splunk_otel=True)
+    assert settings.enable_splunk_otel is False
+
+
+def test_enable_splunk_otel_stays_enabled_with_token() -> None:
+    settings = Settings(enable_splunk_otel=True, splunk_access_token="ingest-token")
+    assert settings.enable_splunk_otel is True
+
+
+def test_empty_enable_flags_default_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENABLE_SLACK", "")
+    monkeypatch.setenv("ENABLE_SPLUNK_MCP", "")
+    settings = Settings(_env_file=None)
+    assert settings.enable_slack is False
+    assert settings.enable_splunk_mcp is False
 
 
 def test_enable_galileo_requires_api_key() -> None:

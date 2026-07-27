@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 # Facilitator-injected keys that may live in profile scripts without export.
+# Feature toggles (ENABLE_*) are intentionally omitted — participants control those in .env.
 WORKSHOP_ENV_KEYS: tuple[str, ...] = (
     "LLM_PROVIDER",
     "OPENAI_API_KEY",
@@ -17,18 +18,14 @@ WORKSHOP_ENV_KEYS: tuple[str, ...] = (
     "AZURE_OPENAI_API_KEY",
     "AZURE_OPENAI_DEPLOYMENT_NAME",
     "AZURE_OPENAI_API_VERSION",
-    "ENABLE_SPLUNK_O11Y",
     "SPLUNK_O11Y_GATEWAY_URL",
     "SPLUNK_O11Y_REALM",
     "SPLUNK_O11Y_API_TOKEN",
-    "ENABLE_SPLUNK_CLOUD_MCP",
     "SPLUNK_CLOUD_MCP_URL",
     "SPLUNK_CLOUD_MCP_BEARER_TOKEN",
     "SPLUNK_CLOUD_MCP_TENANT",
-    "ENABLE_SPLUNK_MCP",
     "SPLUNK_MCP_URL",
     "SPLUNK_MCP_BEARER_TOKEN",
-    "ENABLE_SPLUNK_OTEL",
     "SPLUNK_ACCESS_TOKEN",
     "GALILEO_API_KEY",
     "GALILEO_CONSOLE_URL",

@@ -9,6 +9,13 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, Settings
 LlmProvider = Literal["ollama", "openai", "azure_openai"]
 
 
+def _feature_enabled(requested: bool, credentials: dict[str, str | None]) -> bool:
+    """Return True only when a feature is requested and all credentials are present."""
+    if not requested:
+        return False
+    return all(credentials.values())
+
+
 def default_agent_log_dir() -> str:
     """Shared investigation log directory (cwd-independent)."""
     shared_root = Path(__file__).resolve().parents[1]
@@ -27,6 +34,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         populate_by_name=True,
+        env_ignore_empty=True,
     )
 
     llm_provider: LlmProvider | None = Field(
@@ -93,7 +101,10 @@ class Settings(BaseSettings):
     )
 
     # Splunk Observability Cloud (o11y tools on Splunk Cloud MCP gateway)
-    enable_splunk_o11y: bool = Field(default=False)
+    enable_splunk_o11y: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("enable_splunk_o11y", "ENABLE_SPLUNK_O11Y"),
+    )
     splunk_o11y_gateway_url: str | None = Field(
         default=None,
         description="Splunk Cloud MCP gateway URL for Observability tools",
@@ -109,7 +120,10 @@ class Settings(BaseSettings):
     )
 
     # Splunk Cloud MCP server (platform / logs — not Observability-only auth)
-    enable_splunk_cloud_mcp: bool = Field(default=False)
+    enable_splunk_cloud_mcp: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("enable_splunk_cloud_mcp", "ENABLE_SPLUNK_CLOUD_MCP"),
+    )
     splunk_cloud_mcp_url: str | None = Field(
         default=None,
         description="Splunk Cloud MCP gateway or server URL",
@@ -124,7 +138,10 @@ class Settings(BaseSettings):
     )
 
     # Splunk Enterprise MCP (on-prem)
-    enable_splunk_mcp: bool = Field(default=False)
+    enable_splunk_mcp: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("enable_splunk_mcp", "ENABLE_SPLUNK_MCP"),
+    )
     splunk_mcp_url: str | None = Field(
         default=None,
         description="Splunk Enterprise MCP endpoint URL",
@@ -135,7 +152,10 @@ class Settings(BaseSettings):
     )
 
     # Slack demo (Socket Mode listener for Observability alerts channel)
-    enable_slack: bool = Field(default=False)
+    enable_slack: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("enable_slack", "ENABLE_SLACK"),
+    )
     slack_bot_token: str | None = Field(
         default=None,
         validation_alias=AliasChoices("slack_bot_token", "SLACK_BOT_TOKEN"),
@@ -288,46 +308,40 @@ class Settings(BaseSettings):
             if missing:
                 msg = f"enable_splunk_o11y requires: {', '.join(missing)}"
                 raise ValueError(msg)
-        if self.enable_splunk_cloud_mcp:
-            missing = [
-                name
-                for name, value in [
-                    ("SPLUNK_CLOUD_MCP_URL", self.splunk_cloud_mcp_url),
-                    ("SPLUNK_CLOUD_MCP_BEARER_TOKEN", self.splunk_cloud_mcp_bearer_token),
-                ]
-                if not value
-            ]
-            if missing:
-                msg = f"enable_splunk_cloud_mcp requires: {', '.join(missing)}"
-                raise ValueError(msg)
-        if self.enable_splunk_mcp:
-            missing = [
-                name
-                for name, value in [
-                    ("SPLUNK_MCP_URL", self.splunk_mcp_url),
-                    ("SPLUNK_MCP_BEARER_TOKEN", self.splunk_mcp_bearer_token),
-                ]
-                if not value
-            ]
-            if missing:
-                msg = f"enable_splunk_mcp requires: {', '.join(missing)}"
-                raise ValueError(msg)
-        if self.enable_slack:
-            missing = [
-                name
-                for name, value in [
-                    ("SLACK_BOT_TOKEN", self.slack_bot_token),
-                    ("SLACK_APP_TOKEN", self.slack_app_token),
-                    ("SLACK_SIGNING_SECRET", self.slack_signing_secret),
-                ]
-                if not value
-            ]
-            if missing:
-                msg = f"enable_slack requires: {', '.join(missing)}"
-                raise ValueError(msg)
-        if self.enable_splunk_otel and not self.splunk_access_token:
-            msg = "enable_splunk_otel requires: SPLUNK_ACCESS_TOKEN (ingest token)"
-            raise ValueError(msg)
+        else:
+            o11y_credentials = {
+                "SPLUNK_O11Y_GATEWAY_URL": self.splunk_o11y_gateway_url,
+                "SPLUNK_O11Y_REALM": self.splunk_o11y_realm,
+                "SPLUNK_O11Y_API_TOKEN": self.splunk_o11y_api_token,
+            }
+            if all(o11y_credentials.values()):
+                self.enable_splunk_o11y = True
+        self.enable_splunk_cloud_mcp = _feature_enabled(
+            self.enable_splunk_cloud_mcp,
+            {
+                "SPLUNK_CLOUD_MCP_URL": self.splunk_cloud_mcp_url,
+                "SPLUNK_CLOUD_MCP_BEARER_TOKEN": self.splunk_cloud_mcp_bearer_token,
+            },
+        )
+        self.enable_splunk_mcp = _feature_enabled(
+            self.enable_splunk_mcp,
+            {
+                "SPLUNK_MCP_URL": self.splunk_mcp_url,
+                "SPLUNK_MCP_BEARER_TOKEN": self.splunk_mcp_bearer_token,
+            },
+        )
+        self.enable_slack = _feature_enabled(
+            self.enable_slack,
+            {
+                "SLACK_BOT_TOKEN": self.slack_bot_token,
+                "SLACK_APP_TOKEN": self.slack_app_token,
+                "SLACK_SIGNING_SECRET": self.slack_signing_secret,
+            },
+        )
+        self.enable_splunk_otel = _feature_enabled(
+            self.enable_splunk_otel,
+            {"SPLUNK_ACCESS_TOKEN": self.splunk_access_token},
+        )
         if self.enable_galileo:
             missing = [
                 name
