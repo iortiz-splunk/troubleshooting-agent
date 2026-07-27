@@ -10,6 +10,7 @@ from workshop_shared.config import Settings, get_settings
 from workshop_shared.llm.invoke_health import check_llm_invoke_health_sync
 from workshop_shared.llm.ollama import check_ollama_health, is_configured_model_available
 from workshop_shared.mcp.bridge import check_mcp_servers
+from workshop_shared.mcp.command import npx_availability_error
 from workshop_shared.observability.logging_trace import setup_logging
 from workshop_shared.observability.otel import init_splunk_otel
 from workshop_shared.slack.doctor import check_slack_health
@@ -75,6 +76,10 @@ def run_mcp_doctor() -> None:
         or settings.enable_splunk_mcp
     ):
         typer.echo("No MCP integrations enabled.")
+        raise typer.Exit(code=1)
+    npx_error = npx_availability_error(settings)
+    if npx_error:
+        typer.echo(npx_error, err=True)
         raise typer.Exit(code=1)
     results = asyncio.run(check_mcp_servers(settings))
     exit_code = 0

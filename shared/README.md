@@ -113,7 +113,7 @@ When trace is on, `troubleshooting-agent chat` prints the response in the log bl
 ## Splunk MCP setup
 
 1. Enable the integration(s) in `.env`.
-2. Ensure `npx` is on your PATH.
+2. Ensure Node.js **20** and `npx` are on your PATH (`mcp-remote` requires Node 18+; Ubuntu `apt install nodejs` often ships Node 12). Facilitators: run `scripts/workshop-instance-setup.sh` on each EC2 instance.
 3. Run `mcp-doctor` — expect `OK` and a list of `o11y_*` tools.
 4. Test: `cd part1_agent && troubleshooting-agent chat "List APM environments"`.
 
@@ -133,6 +133,19 @@ not a bare string like `-1h`.
 4. `cd part3_agent && troubleshooting-agent slack-listen` and post/trigger an alert.
 
 The listener refetches thin bot messages, skips resolved alerts, enriches context via MCP (`eventId`), and replies in the alert thread.
+
+## Facilitator capacity testing
+
+Before a large workshop, estimate how many simultaneous participants your MCP backends can handle:
+
+```bash
+pip install -e ".[loadtest]"
+streamlit run tools/mcp_load_runner/app.py   # UI — check O11y in sidebar, run preflight
+mcp-load-test preflight --servers o11y
+mcp-load-test run -n 200 --servers o11y --ramp-up 120 --output-json results.json   # EC2 headless
+```
+
+The load runner simulates **N concurrent Part 3 APM investigations** (scripted MCP tool calls, no LLM). For **200 participants**, use an **r7i.4xlarge** (128 GB) or larger EC2 instance with `ulimit -n 65535`. See [`tools/mcp_load_runner/README.md`](../tools/mcp_load_runner/README.md) for sizing and AWS cost estimates.
 
 ## Troubleshooting
 

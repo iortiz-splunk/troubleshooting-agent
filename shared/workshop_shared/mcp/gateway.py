@@ -3,6 +3,7 @@
 from mcp import StdioServerParameters
 
 from workshop_shared.config import Settings
+from workshop_shared.mcp.command import resolve_mcp_npx_command
 
 
 def _build_mcp_remote_args(settings: Settings, url: str, extra_headers: list[str]) -> list[str]:
@@ -43,7 +44,7 @@ def splunk_o11y_gateway_params(settings: Settings) -> StdioServerParameters:
     ]
 
     return StdioServerParameters(
-        command=settings.mcp_npx_command,
+        command=resolve_mcp_npx_command(settings),
         args=_build_mcp_remote_args(settings, settings.splunk_o11y_gateway_url, headers),
     )
 
@@ -69,7 +70,7 @@ def splunk_cloud_mcp_params(settings: Settings) -> StdioServerParameters:
         headers.extend(["--header", f"splunk_tenant:{settings.splunk_cloud_mcp_tenant}"])
 
     return StdioServerParameters(
-        command=settings.mcp_npx_command,
+        command=resolve_mcp_npx_command(settings),
         args=_build_mcp_remote_args(settings, settings.splunk_cloud_mcp_url, headers),
     )
 
@@ -89,6 +90,6 @@ def splunk_enterprise_mcp_params(settings: Settings) -> StdioServerParameters:
     ]
 
     return StdioServerParameters(
-        command=settings.mcp_npx_command,
+        command=resolve_mcp_npx_command(settings),
         args=_build_mcp_remote_args(settings, settings.splunk_mcp_url, headers),
     )

@@ -6,7 +6,7 @@ AI troubleshooting agent for applications and systems. This repo is organized as
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.10+
 - An LLM: **Ollama**, **OpenAI-compatible** API, or **Azure OpenAI**
 - Node.js `npx` when Splunk MCP integrations are enabled
 

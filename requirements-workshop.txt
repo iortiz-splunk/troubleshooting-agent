@@ -1,6 +1,9 @@
 # Pinned runtime dependencies for workshop participants (observability extra included).
 # Skips pip's dependency resolver — no dev tools (mypy, pytest, ruff).
 #
+# Requires Python 3.10+ (3.11+ recommended). Tested on Ubuntu EC2 x86_64.
+# Before installing: python3 -m pip install --upgrade pip
+#
 # Install from repo root:
 #   pip install -r requirements-workshop.txt
 #   pip install -e . --no-deps
@@ -81,7 +84,7 @@ regex==2026.7.19
 requests-toolbelt==1.0.0
 requests==2.34.2
 rich==15.0.0
-rpds-py==2026.6.3
+rpds-py==0.30.0
 shellingham==1.5.4
 six==1.17.0
 slack_bolt==1.30.0

@@ -10,7 +10,7 @@ Part 1 is the **baseline** — a minimal troubleshooting agent with **no skills 
 
 The goal is not perfection. You are establishing what the agent does **without playbooks** so you can compare against Part 2 (skills) and Part 3 (structured graph).
 
-## What Part 1 includes
+## Baseline Agent
 
 | Component | Description |
 |-----------|-------------|
@@ -28,7 +28,7 @@ If you want to skim the code before running:
 
 ## Run your first investigation
 
-Make sure you completed [Configure Agent Environment](/troubleshooting-agent/5-configure-agent-environment/) — virtual environment installed, `.env` configured, and both doctor commands passing.
+Make sure you completed [Configure Environment](/troubleshooting-agent/5-configure-agent-environment/) — virtual environment installed, `.env` configured, and both doctor commands passing.
 
 Start with a CLI investigation using the workshop's default APM service:
 
@@ -39,31 +39,53 @@ Start with a CLI investigation using the workshop's default APM service:
 cd ~/troubleshooting-agent
 source .venv/bin/activate
 cd part1_agent
-troubleshooting-agent chat "Why is Verification slow?"
+troubleshooting-agent chat "Why does paymentservice have errors?"
 ```
 
 {{% /tab %}}
 {{% tab title="Example Output" %}}
 
 ```text
-══════════════════════════════════════════════════════════════
- Investigation  chat:a1b2c3d4  |  part1  |  cli
-──────────────────────────────────────────────────────────────
- Query: Why is Verification slow?
- LLM: openai  |  MCP tools available: 12
-══════════════════════════════════════════════════════════════
-[1] LLM turn 1 — calling tools: o11y_search_alerts_or_incidents
-[2] MCP o11y_search_alerts_or_incidents — OK (1.8 KB) | alerts=1
-[3] LLM turn 2 — calling tools: o11y_get_apm_service_latency
-[4] MCP o11y_get_apm_service_latency — OK (3.2 KB)
-[5] LLM turn 3 — composing final response (512 chars)
-──────────────────────────────────────────────────────────────
- Agent response
-──────────────────────────────────────────────────────────────
-- Active latency alert on Verification (production) ...
-- p99 latency elevated vs baseline ...
-- Recommended next steps: check recent deployments, inspect traces ...
-══════════════════════════════════════════════════════════════
+(.venv) splunk@ip-172-31-19-27:~/troubleshooting-agent/part1_agent$ troubleshooting-agent chat "Why does paymentservice have errors?"
+INFO Splunk OTel initialized service=troubleshooting-agent
+INFO HTTP Request: POST https://lite-llm-proxy.splunko11y.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO [inv=chat:5a4dffc6d704] Log file: /home/splunk/troubleshooting-agent/shared/logs/investigations/chat-5a4dffc6d704.jsonl
+INFO [inv=chat:5a4dffc6d704] 
+INFO [inv=chat:5a4dffc6d704] ══════════════════════════════════════════════════════════════
+INFO [inv=chat:5a4dffc6d704]  Investigation  chat:5a4dffc6d704  |  part1_agent  |  cli
+INFO [inv=chat:5a4dffc6d704] ──────────────────────────────────────────────────────────────
+INFO [inv=chat:5a4dffc6d704]  Query: Why does paymentservice have errors?
+INFO [inv=chat:5a4dffc6d704]  LLM: openai  |  MCP tools available: 12
+INFO [inv=chat:5a4dffc6d704] ══════════════════════════════════════════════════════════════
+INFO HTTP Request: GET https://api.multitenant.galileocloud.io/healthcheck "HTTP/1.1 200 OK"
+INFO HTTP Request: POST https://api.multitenant.galileocloud.io/login/api_key "HTTP/1.1 200 OK"
+INFO HTTP Request: GET https://api.multitenant.galileocloud.io/current_user "HTTP/1.1 200 OK"
+INFO HTTP Request: GET https://api.multitenant.galileocloud.io/projects?project_name=sre-agent-wkshp-shw-2cb1&type=gen_ai "HTTP/1.1 200 OK"
+INFO HTTP Request: POST https://api.multitenant.galileocloud.io/projects "HTTP/1.1 200 OK"
+INFO HTTP Request: GET https://api.multitenant.galileocloud.io/projects/26a65ecc-5b04-43b8-adf0-4aabf5af4b94/log_streams/paginated?include_counts=false&starting_token=0&limit=500 "HTTP/1.1 200 OK"
+INFO HTTP Request: POST https://api.multitenant.galileocloud.io/projects/26a65ecc-5b04-43b8-adf0-4aabf5af4b94/log_streams "HTTP/1.1 200 OK"
+INFO HTTP Request: GET https://api.multitenant.galileocloud.io/ingest/healthz "HTTP/1.1 200 OK"
+INFO HTTP Request: POST https://api.multitenant.galileocloud.io/v2/projects/26a65ecc-5b04-43b8-adf0-4aabf5af4b94/sessions/search "HTTP/1.1 200 OK"
+INFO HTTP Request: POST https://api.multitenant.galileocloud.io/v2/projects/26a65ecc-5b04-43b8-adf0-4aabf5af4b94/sessions "HTTP/1.1 200 OK"
+INFO Galileo session=chat-5a4dffc6d704 | part1_agent project=sre-agent-wkshp-shw-2cb1 stream=sre-agent-wkshp console=https://console.multitenant.galileocloud.io
+INFO Retrying request to /chat/completions in 0.404894 seconds
+INFO HTTP Request: POST https://lite-llm-proxy.splunko11y.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [1] LLM turn 1 — calling tools: o11y_get_apm_services
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [2] MCP o11y_get_apm_services — ERROR: 1 validation error for call[get_apm_services] params.environment_name Field required [type=missing, input_value={'service_name': 'paymentservice'}, input_typ...
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82      args: {"params":{"service_name":"paymentservice"}}
+INFO HTTP Request: POST https://lite-llm-proxy.splunko11y.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [2] LLM turn 2 — composing final response (283 chars)
+INFO HTTP Request: POST https://api.multitenant.galileocloud.io/ingest/traces/26a65ecc-5b04-43b8-adf0-4aabf5af4b94 "HTTP/1.1 200 OK"
+INFO [inv=chat:5a4dffc6d704] ──────────────────────────────────────────────────────────────
+INFO [inv=chat:5a4dffc6d704]  Done — 2 LLM turns | 0 tool calls | 14.0s
+INFO [inv=chat:5a4dffc6d704]  Log file: /home/splunk/troubleshooting-agent/shared/logs/investigations/chat-5a4dffc6d704.jsonl
+INFO [inv=chat:5a4dffc6d704] ══════════════════════════════════════════════════════════════
+INFO [inv=chat:5a4dffc6d704] 
+INFO [inv=chat:5a4dffc6d704] ──────────────────────────────────────────────────────────────
+INFO [inv=chat:5a4dffc6d704]  Agent response
+INFO [inv=chat:5a4dffc6d704] ──────────────────────────────────────────────────────────────
+INFO [inv=chat:5a4dffc6d704] To investigate the errors in the "paymentservice," I need to know the environment where this service is running (e.g., production, staging, etc.). Could you please provide the environment name? Also, if you want to specify a timeframe for the error investigation, please let me know.
+INFO [inv=chat:5a4dffc6d704] ══════════════════════════════════════════════════════════════
 ```
 
 {{% /tab %}}
@@ -81,29 +103,46 @@ With `AGENT_LOG_TRACE=true` (the default), every run prints a structured trace t
 
 1. **Which MCP tools did the agent call?** — Look for `[n] MCP o11y_...` lines.
 2. **Which tools did it skip?** — A baseline agent often skips traces, logs, or infrastructure correlation.
-3. **Were parameters correct?** — Service names should be exact (e.g. `Verification`, not split keywords). Time ranges should use `{"start": "-1h", "stop": "now"}` inside a `params` object.
+3. **Were parameters correct?** — Service names should be exact (e.g. `paymentservice`, not split keywords). Time ranges should use `{"start": "-1h", "stop": "now"}` inside a `params` object.
 4. **Is the answer grounded?** — Does the final response reflect actual JSON from tool results, or does it sound plausible without evidence?
 
-The same events are written to `shared/logs/investigations/<id>.jsonl` for post-workshop review.
+The same events are written to `shared/logs/investigations/<id>.jsonl` for post-workshop review. Each run prints the path at the end (look for `Log file:` in the output).
+
+{{< notice title="Tip" style="tip" >}}
+Cleared your terminal before you could review the trace? You have two easy options:
+
+- **Open the JSONL log** — use the `Log file:` path from the end of the run, or list the newest file:
+  ```bash
+  ls -t ~/troubleshooting-agent/shared/logs/investigations/*.jsonl | head -1
+  ```
+- **Re-run the same command** — run `troubleshooting-agent chat "Why does paymentservice have errors?"` again. You will get a new trace (and a new Galileo session), but the investigation flow is the same.
+{{< /notice >}}
 
 ## Review the run in Galileo
 
-After your chat completes, open the Galileo console (URL from your `.env` — typically the multitenant workshop console) and navigate to:
+After your chat completes, open the **Galileo console** and navigate to:
 
-1. **Project** — the name you set (`workshop-<your-instance>`)
-2. **Log stream** — the name you set (`part1-<your-instance>`)
-3. **Sessions** — find the most recent session (named `chat:... | part1_agent`)
+1. **Project** — the name you set (for example, `sre-agent-wkshp-shw-2cb1`)
+2. **Agent Stream** — your log stream from `.env` (for example, `sre-agent-wkshp`)
+3. **Sessions** — find the most recent session (named `chat-9265e3375c8b | part1_agent`)
 
-Expand the trace tree. In Part 1 you should see:
+Select the session to open the trace view. You should see three areas: the **trace tree** on the left, the **chat** in the center (user query and agent response), and detail tabs on the right.
+
+Expand the trace tree. A typical Part 1 run looks like this:
 
 ```text
-part1_investigation
-├── agent          ← LLM turn (may repeat)
-├── tools          ← MCP tool execution (may repeat)
-└── session_usage  ← token totals for the run
+Agent
+├── Agent:agent          ← LLM turn
+├── should_continue      ← graph routing
+├── tools
+│   └── o11y_get_apm_environments   ← MCP tool (names vary by run)
+├── Agent:agent          ← next LLM turn
+└── should_continue
 ```
 
-Click into tool spans to see MCP inputs and outputs. Compare what Galileo captured with what the terminal trace showed — they should tell the same story.
+Click **`tools`** and the nested MCP span to inspect arguments and JSON responses. Compare what Galileo captured with what the terminal trace showed — they should tell the same story.
+
+{{< diagram src="images/part1-galileo-trace.png" alt="Galileo Agent Stream showing a Part 1 session with trace tree, chat, and Evaluators tab" caption="A Part 1 session in Agent Stream — trace tree on the left, conversation in the center. Evaluator scores appear after you enable them in the next section." width="960" >}}
 
 {{< notice title="Tip" style="tip" >}}
 Keep the Galileo console open in a browser tab during the workshop. After each investigation, refresh and locate your session — it is the fastest way to compare Part 1, Part 2, and Part 3 on the same alert.
@@ -111,7 +150,7 @@ Keep the Galileo console open in a browser tab during the workshop. After each i
 
 ## Baseline exercise
 
-Work through this checklist with the investigation prompt your facilitator provides (latency on **Verification** is the default):
+Work through this checklist with the investigation prompt your facilitator provides (errors on **paymentservice** is the default):
 
 | Step | Action |
 |------|--------|
@@ -135,4 +174,4 @@ Part 1 intentionally has **no playbook**. Expect variation between runs — that
 
 ---
 
-**Next:** Part 2 — Skill Playbooks (coming soon) — see how keyword-injected `SKILL.md` files change what the agent investigates and in what order.
+**Next:** [Configure Galileo Log Stream Evaluators](/troubleshooting-agent/7-galileo-logstream-evaluators/) — turn on evaluators to score tool selection, grounding, and hallucination risk on your Part 1 sessions.

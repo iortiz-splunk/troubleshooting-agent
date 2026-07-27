@@ -29,24 +29,17 @@ All three parts use the same command — `troubleshooting-agent` — from their 
 
 ## Prerequisites
 
-Before starting, make sure you have:
-
-- **Python 3.11+** and **Node.js** with `npx` (for Splunk MCP)
-- An EC2 instance from the workshop (see [Connect to EC2](/troubleshooting-agent/3-connect-ec2/))
-- Workshop credentials exported as **EC2 environment variables** (LLM, Splunk MCP, Galileo API — provided by facilitators)
-
-Copy `.env.example` to `.env` and add your personal Galileo project and log stream names. Follow [Configure Agent Environment](/troubleshooting-agent/5-configure-agent-environment/) to install Python dependencies, configure `.env`, and verify connectivity before Part 1.
+You need access to your workshop instance (see [Connect to EC2](/troubleshooting-agent/3-connect-ec2/)). The repository and credentials are already set up on the instance — complete [Configure Environment](/troubleshooting-agent/5-configure-agent-environment/) before Part 1.
 
 ## Getting started
 
-The repository should already be on your EC2 instance at `~/troubleshooting-agent`. Clone it yourself only if your facilitator instructs you to:
+The repository is at `~/troubleshooting-agent` on your instance. Follow the workshop steps in order:
 
-```bash
-git clone https://github.com/iortiz-splunk/troubleshooting-agent.git
-cd troubleshooting-agent
-```
-
-Python setup, `.env` configuration, and doctor checks are covered in [Configure Agent Environment](/troubleshooting-agent/5-configure-agent-environment/) — complete that section before Part 1.
+1. [Connect to EC2](/troubleshooting-agent/3-connect-ec2/)
+2. [Deploy the OpenTelemetry Collector](/troubleshooting-agent/4-deploy-otel-collector/)
+3. [Configure Environment](/troubleshooting-agent/5-configure-agent-environment/)
+4. [Part 1 — Baseline Agent](/troubleshooting-agent/6-part1-baseline-agent/)
+5. [Configure Galileo Log Stream Evaluators](/troubleshooting-agent/7-galileo-logstream-evaluators/)
 
 ## Workshop flow
 
@@ -54,8 +47,9 @@ The workshop is organized into setup steps and three agent parts:
 
 0. **Setup** — Connect to EC2, deploy the OTel collector, configure Galileo, verify doctors
 1. **Part 1 — Baseline agent** — Run the minimal MCP-only agent. Observe what it finds without playbooks.
-2. **Part 2 — Skill playbooks** — See how keyword-injected skills change investigation quality.
-3. **Part 3 — Full workflow** — Explore the four-node LangGraph graph and full skill library.
+2. **Galileo evaluators** — Enable log stream evaluators to score tool selection, grounding, and hallucination risk.
+3. **Part 2 — Skill playbooks** — See how keyword-injected skills change investigation quality.
+4. **Part 3 — Full workflow** — Explore the four-node LangGraph graph and full skill library.
 
 ## Key concepts
 

@@ -1,87 +1,16 @@
 ---
-title: "Configure Agent Environment"
-description: "Create your .env file, set Galileo project and log stream, then verify LLM and Splunk Observability MCP connectivity before Part 1."
+title: "Configure Environment"
+description: "Install dependencies, personalize your Galileo settings, and verify everything is ready before Part 1."
 weight: 5
-navTitle: "Configure Agent Environment"
-duration: "15 minutes"
+navTitle: "Configure Environment"
+duration: "10 minutes"
 ---
 
+Your workshop instance and credentials are already configured. Before Part 1, you will **install the agent dependencies** and **personalize your Galileo project name** so you can find your traces during the workshop.
 
-Workshop credentials are injected as **EC2 environment variables** by facilitators to simplify the configuration process. There are still a few variables that you will need to set yourself. For this you will be copying the `.env.example` file and creating your own version of `.env`.
+## Install dependencies
 
-The agent loads configuration through Pydantic Settings: it reads your `.env` file **and** picks up variables already exported in your shell. When the same variable exists in both places, **the EC2 environment variable wins**.
-
-
-## Create your .env file
-
-From the repo root on your EC2 instance:
-
-```bash
-cd ~/troubleshooting-agent
-cp .env.example .env
-nano .env
-```
-
-You do **not** need to fill in every line in `.env.example`. Leave workshop credential lines blank or commented out — the agent reads those from EC2 environment variables instead.
-
-
-## What you add to .env
-
-Add only the settings below — these are **not** pre-set on EC2 and must live in your `.env` file:
-
-```bash
-# Enable Galileo tracing (API key and console URL come from EC2 env)
-ENABLE_GALILEO=true
-GALILEO_PROJECT="sre-agent-wkshp-$INSTANCE"
-GALILEO_LOG_STREAM="sre-agent-wkshp"
-```
-
-Replace `$INSTANCE` with the value from `echo $INSTANCE` (from [Connect to EC2](/troubleshooting-agent/3-connect-ec2/)). For example, if `echo $INSTANCE` prints `shw-2cb1`:
-
-```bash
-GALILEO_PROJECT="sre-agent-wkshp-shw-2cb1"
-GALILEO_LOG_STREAM="sre-agent-wkshp"
-```
-
-{{< notice title="Tip" style="tip" >}}
-Use the same `GALILEO_PROJECT` across Parts 1–3 so all investigations appear together. Change only `GALILEO_LOG_STREAM` if you want to separate runs by part.
-{{< /notice >}}
-
-Save and exit the editor (`Ctrl + O`, `Enter`, `Ctrl + X` in nano).
-
-At the end your `.env` should look something like this 
-{{< diagram src="images/env-example.png" alt="Example of .env file" >}}
-
-
-## Splunk Agent Observability with Galileo
-
-**Galileo** is the agent observability platform used in this workshop. Every investigation you run sends a **trace** to Galileo showing:
-
-- Each **LLM turn** — what the model decided to do next
-- Each **tool call** — which MCP tools ran, with inputs and outputs
-- **Token usage** — input, output, and total tokens for the session
-
-This complements what you see in the terminal:
-
-| Signal | Where | Best for |
-|--------|-------|----------|
-| **Terminal trace** | CLI output (`AGENT_LOG_TRACE=true`, default) | Live narration during a run |
-| **JSONL files** | `shared/logs/investigations/` | Logs of each agent session  |
-| **Galileo sessions** | Galileo console (`GALILEO_CONSOLE_URL` on your instance) | Persistent traces, comparing runs, sharing with your team |
-
-In **Part 1**, Galileo traces show a simple **ReAct loop** — the model alternates between an `agent` node (reasoning) and a `tools` node (MCP calls) until it produces a final answer. Parts 2 and 3 add skill metadata; Part 3 adds named workflow nodes (`identify`, `investigate`, `report`, etc.).
-
-Each investigation creates a **session** in your Galileo project and log stream. CLI runs are named like `chat:abc123 | part1_agent` so you can find your trace after each `troubleshooting-agent chat` command.
-
-## Install Python dependencies
-
-The `troubleshooting-agent` CLI is installed from this repository. Before running doctor commands or the agent, create a virtual environment and install dependencies from the repo root.
-
-Use the **pinned requirements file** below — it avoids pip's dependency resolver (which can backtrack for many minutes on `ruff` and LangChain packages if you install the `dev` extra).
-
-{{< notice title="Tip" style="tip" >}}
-If SSH might disconnect during install, run inside `tmux` or `screen` so the install continues in the background: `tmux new -s install`
-{{< /notice >}}
+From the repo on your instance:
 
 {{< tabs >}}
 {{% tab title="Script" open="true" %}}
@@ -105,17 +34,64 @@ Successfully installed troubleshooting-agent-0.1.0
 {{% /tab %}}
 {{< /tabs >}}
 
-{{< notice title="Important" style="primary" >}}
-Do **not** use `pip install -e ".[dev,observability]"` during the workshop. The `dev` extra pulls in **ruff**, **mypy**, and **pytest** — dev tools you do not need to run the agent, and pip may spend 30+ minutes resolving compatible versions.
+{{< notice title="Tip" style="tip" >}}
+Run `source .venv/bin/activate` whenever you open a new SSH session. Your prompt should show `(.venv)` when the environment is active.
 {{< /notice >}}
+
+## Personalize your Galileo settings
+
+Create your `.env` file and set a **unique Galileo project name** so your agent runs are easy to find:
+
+```bash
+cd ~/troubleshooting-agent
+cp .env.example .env
+nano .env
+```
+
+Add or update these lines (use your instance name from `echo $INSTANCE` — see [Connect to EC2](/troubleshooting-agent/3-connect-ec2/)):
+
+```bash
+ENABLE_GALILEO=true
+GALILEO_PROJECT="sre-agent-wkshp-$INSTANCE"
+GALILEO_LOG_STREAM="sre-agent-wkshp"
+```
+
+For example, if `echo $INSTANCE` prints `shw-2cb1`:
+
+```bash
+GALILEO_PROJECT="sre-agent-wkshp-shw-2cb1"
+GALILEO_LOG_STREAM="sre-agent-wkshp"
+```
 
 {{< notice title="Tip" style="tip" >}}
-Run `source .venv/bin/activate` whenever you open a new SSH session before using `troubleshooting-agent`. Your shell prompt should show `(.venv)` when the environment is active.
+Use the same `GALILEO_PROJECT` across Parts 1–3 so all your investigations appear in one place.
 {{< /notice >}}
 
-## Verify connectivity
+Save and exit (`Ctrl + O`, `Enter`, `Ctrl + X` in nano). Your file should look similar to this:
 
-With the virtual environment **activated** and your `.env` in place, confirm the LLM and Splunk Observability MCP integrations are working. Run these from the Part 1 directory:
+{{< diagram src="images/env-example.png" alt="Example .env file with ENABLE_GALILEO and personalized Galileo project name" >}}
+
+## Splunk Agent Observability with Galileo
+
+**Galileo** captures each agent investigation as a trace you can review in the browser:
+
+- Each **LLM turn** — what the model decided to do next
+- Each **tool call** — which MCP tools ran, with inputs and outputs
+- **Token usage** — input, output, and total tokens for the session
+
+| Signal | Where | Best for |
+|--------|-------|----------|
+| **Terminal trace** | CLI output during a run | Live narration |
+| **JSONL files** | `shared/logs/investigations/` | Review after a run |
+| **Galileo sessions** | Galileo console | Comparing runs across Parts 1–3 |
+
+In **Part 1**, open **Agent Stream** in the Galileo console to see the ReAct loop — `Agent:agent` (LLM turns), `should_continue` (graph routing), and `tools` (MCP calls). Parts 2 and 3 add skills and named workflow nodes.
+
+Each investigation creates a **session** named like `chat-abc123 | part1_agent` in your Galileo project (terminal IDs use `chat:`; Galileo session names use `chat-`).
+
+## Verify setup
+
+With your virtual environment activated and `.env` saved, run:
 
 {{< tabs >}}
 {{% tab title="Script" open="true" %}}
@@ -132,23 +108,37 @@ troubleshooting-agent mcp-doctor
 {{% tab title="Example Output" %}}
 
 ```text
-$ troubleshooting-agent doctor
-OK  LLM provider=openai  model=gpt-4.1-mini
-
-$ troubleshooting-agent mcp-doctor
-OK  Splunk Observability MCP connected
-    Tools available: 12
-    Sample: o11y_search_alerts_or_incidents, o11y_get_apm_service_latency, ...
+(.venv) splunk@ip-172-31-19-27:~/troubleshooting-agent/part1_agent$ troubleshooting-agent doctor
+Part 1 — minimal MCP-only agent
+LLM provider: openai
+Base URL: https://lite-llm-proxy.splunko11y.com/v1
+Model: gpt-4.1-mini
+OpenAI-compatible LLM: OK
+Ready.
+(.venv) splunk@ip-172-31-19-27:~/troubleshooting-agent/part1_agent$ troubleshooting-agent mcp-doctor
+Part 1 — minimal MCP-only agent
+splunk_o11y: OK (12 tools)
+  - o11y_get_metric_names
+  - o11y_get_apm_trace_tool
+  - o11y_get_apm_exemplar_traces
+  - o11y_generate_signalflow_program
+  - o11y_get_apm_service_errors_and_requests
+  - o11y_get_apm_service_latency
+  - o11y_get_apm_services
+  - o11y_search_alerts_or_incidents
+  - o11y_execute_signalflow_program
+  - o11y_get_apm_service_dependencies
+  - o11y_get_apm_environments
+  - o11y_get_metric_metadata
+MCP ready.
 ```
 
 {{% /tab %}}
 {{< /tabs >}}
 
 {{< notice title="Important" style="primary" >}}
-Both commands must report **OK** before continuing. If `mcp-doctor` fails, the agent has no live Observability data and may hallucinate conclusions.
+Both commands should report **Ready** before you continue. If either fails, ask your facilitator for help.
 {{< /notice >}}
-
-If either command fails, ask your facilitator — EC2 environment variables should already supply the LLM and MCP credentials.
 
 ---
 
