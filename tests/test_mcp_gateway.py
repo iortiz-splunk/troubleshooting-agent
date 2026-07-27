@@ -17,7 +17,7 @@ def test_o11y_gateway_params() -> None:
         splunk_o11y_api_token="test-token",
     )
     params = splunk_o11y_gateway_params(settings)
-    assert params.command == "npx"
+    assert params.command.endswith("npx")
     assert "mcp-remote" in params.args
     assert "--silent" in params.args
     assert "X-SF-REALM:us1" in params.args

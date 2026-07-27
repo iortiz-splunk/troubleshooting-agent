@@ -16,6 +16,28 @@ def _feature_enabled(requested: bool, credentials: dict[str, str | None]) -> boo
     return all(credentials.values())
 
 
+def _is_placeholder_value(value: str | None) -> bool:
+    """True for template values copied from .env.example that should not be used."""
+    if not value:
+        return False
+    lowered = value.strip().lower()
+    markers = (
+        ".example.com",
+        "example.com/v1",
+        "your-",
+        "your_",
+        "changeme",
+        "replace-me",
+    )
+    return any(marker in lowered for marker in markers)
+
+
+def _without_placeholders(value: str | None) -> str | None:
+    if value and _is_placeholder_value(value):
+        return None
+    return value
+
+
 def default_agent_log_dir() -> str:
     """Shared investigation log directory (cwd-independent)."""
     shared_root = Path(__file__).resolve().parents[1]
@@ -256,6 +278,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_llm_and_mcp_settings(self) -> "Settings":
+        # Ignore template values from .env.example so EC2 shell credentials win.
+        self.openai_api_key = _without_placeholders(self.openai_api_key)
+        self.openai_base_url = _without_placeholders(self.openai_base_url)
+        self.azure_openai_endpoint = _without_placeholders(self.azure_openai_endpoint)
+        self.azure_openai_api_key = _without_placeholders(self.azure_openai_api_key)
+
         if self.llm_provider is None:
             if self.openai_api_key and self.openai_base_url:
                 self.llm_provider = "openai"

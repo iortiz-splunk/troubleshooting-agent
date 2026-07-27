@@ -42,7 +42,7 @@ def test_enable_o11y_auto_enables_when_credentials_present() -> None:
 def test_auto_detect_openai_provider() -> None:
     settings = Settings(
         openai_api_key="key",
-        openai_base_url="https://lite-llm-proxy.example.com/v1",
+        openai_base_url="https://lite-llm-proxy.splunko11y.com/v1",
     )
     assert settings.llm_provider == "openai"
 
@@ -65,7 +65,7 @@ def test_openai_settings_valid() -> None:
     settings = Settings(
         llm_provider="openai",
         openai_api_key="key",
-        openai_base_url="https://lite-llm-proxy.example.com/v1",
+        openai_base_url="https://lite-llm-proxy.splunko11y.com/v1",
     )
     assert settings.llm_provider == "openai"
     assert settings.openai_model_name == "gpt-4.1-mini"
@@ -128,6 +128,24 @@ def test_empty_enable_flags_default_false(monkeypatch: pytest.MonkeyPatch) -> No
     settings = Settings(_env_file=None)
     assert settings.enable_slack is False
     assert settings.enable_splunk_mcp is False
+
+
+def test_openai_placeholder_base_url_is_ignored() -> None:
+    settings = Settings(
+        openai_api_key="real-key",
+        openai_base_url="https://lite-llm-proxy.example.com/v1",
+    )
+    assert settings.openai_base_url is None
+    assert settings.llm_provider == "ollama"
+
+
+def test_openai_real_base_url_is_kept() -> None:
+    settings = Settings(
+        openai_api_key="real-key",
+        openai_base_url="https://lite-llm-proxy.splunko11y.com/v1",
+    )
+    assert settings.llm_provider == "openai"
+    assert settings.openai_base_url == "https://lite-llm-proxy.splunko11y.com/v1"
 
 
 def test_enable_galileo_requires_api_key() -> None:
