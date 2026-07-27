@@ -15,11 +15,22 @@ node_major() {
   node --version | sed -E 's/^v([0-9]+).*/\1/'
 }
 
+remove_conflicting_node_packages() {
+  # Ubuntu's nodejs 12 packages (especially libnode-dev) block NodeSource nodejs 20.
+  echo "Removing conflicting Ubuntu Node.js packages (if present)..."
+  sudo apt-get remove -y --purge \
+    nodejs npm libnode-dev libnode72 nodejs-doc 2>/dev/null || true
+  sudo apt-get autoremove -y
+  sudo dpkg --configure -a || true
+  sudo apt-get -f install -y
+}
+
 install_node_20() {
   if ! command -v curl >/dev/null 2>&1; then
     sudo apt-get update
     sudo apt-get install -y curl ca-certificates
   fi
+  remove_conflicting_node_packages
   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
   sudo apt-get install -y nodejs
 }
@@ -32,6 +43,12 @@ if [ "$major" -lt "$MIN_NODE_MAJOR" ]; then
     exit 1
   fi
   install_node_20
+fi
+
+major="$(node_major)"
+if [ "$major" -lt "$MIN_NODE_MAJOR" ]; then
+  echo "Node.js $(node --version 2>/dev/null || echo missing) is still too old after install." >&2
+  exit 1
 fi
 
 echo "OK  node=$(node --version)  npx=$(command -v npx)"
