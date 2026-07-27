@@ -1,8 +1,8 @@
 ---
-title: "Configure Agent Environment"
+title: "Configure Environment"
 description: "Install dependencies, personalize your Galileo settings, and verify everything is ready before Part 1."
 weight: 5
-navTitle: "Configure Agent Environment"
+navTitle: "Configure Environment"
 duration: "10 minutes"
 ---
 
@@ -85,9 +85,9 @@ Save and exit (`Ctrl + O`, `Enter`, `Ctrl + X` in nano). Your file should look s
 | **JSONL files** | `shared/logs/investigations/` | Review after a run |
 | **Galileo sessions** | Galileo console | Comparing runs across Parts 1–3 |
 
-In **Part 1**, traces show a simple **ReAct loop** — the model alternates between an `agent` node (reasoning) and a `tools` node (MCP calls). Parts 2 and 3 add skills and named workflow nodes.
+In **Part 1**, open **Agent Stream** in the Galileo console to see the ReAct loop — `Agent:agent` (LLM turns), `should_continue` (graph routing), and `tools` (MCP calls). Parts 2 and 3 add skills and named workflow nodes.
 
-Each investigation creates a **session** named like `chat:abc123 | part1_agent` in your Galileo project.
+Each investigation creates a **session** named like `chat-abc123 | part1_agent` in your Galileo project (terminal IDs use `chat:`; Galileo session names use `chat-`).
 
 ## Verify setup
 
@@ -108,20 +108,36 @@ troubleshooting-agent mcp-doctor
 {{% tab title="Example Output" %}}
 
 ```text
-$ troubleshooting-agent doctor
-OK  LLM provider=openai  model=gpt-4.1-mini
-
-$ troubleshooting-agent mcp-doctor
-OK  Splunk Observability MCP connected
-    Tools available: 12
-    Sample: o11y_search_alerts_or_incidents, o11y_get_apm_service_latency, ...
+(.venv) splunk@ip-172-31-19-27:~/troubleshooting-agent/part1_agent$ troubleshooting-agent doctor
+Part 1 — minimal MCP-only agent
+LLM provider: openai
+Base URL: https://lite-llm-proxy.splunko11y.com/v1
+Model: gpt-4.1-mini
+OpenAI-compatible LLM: OK
+Ready.
+(.venv) splunk@ip-172-31-19-27:~/troubleshooting-agent/part1_agent$ troubleshooting-agent mcp-doctor
+Part 1 — minimal MCP-only agent
+splunk_o11y: OK (12 tools)
+  - o11y_get_metric_names
+  - o11y_get_apm_trace_tool
+  - o11y_get_apm_exemplar_traces
+  - o11y_generate_signalflow_program
+  - o11y_get_apm_service_errors_and_requests
+  - o11y_get_apm_service_latency
+  - o11y_get_apm_services
+  - o11y_search_alerts_or_incidents
+  - o11y_execute_signalflow_program
+  - o11y_get_apm_service_dependencies
+  - o11y_get_apm_environments
+  - o11y_get_metric_metadata
+MCP ready.
 ```
 
 {{% /tab %}}
 {{< /tabs >}}
 
 {{< notice title="Important" style="primary" >}}
-Both commands should report **OK** before you continue. If either fails, ask your facilitator for help.
+Both commands should report **Ready** before you continue. If either fails, ask your facilitator for help.
 {{< /notice >}}
 
 ---

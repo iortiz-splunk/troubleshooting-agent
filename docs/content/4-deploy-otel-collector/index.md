@@ -171,4 +171,4 @@ It's available in the `/etc/otel/collector` directory. Since we installed the co
 
 ---
 
-**Next:** [Configure Agent Environment](/troubleshooting-agent/5-configure-agent-environment/) — personalize Galileo and verify LLM and MCP connectivity before Part 1.
+**Next:** [Configure Environment](/troubleshooting-agent/5-configure-agent-environment/) — personalize Galileo and verify LLM and MCP connectivity before Part 1.
