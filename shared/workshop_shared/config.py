@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import AliasChoices, Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 LlmProvider = Literal["ollama", "openai", "azure_openai"]
 
@@ -222,6 +222,18 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("galileo_console_url", "GALILEO_CONSOLE_URL"),
     )
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        # Shell/process env wins over .env (workshop EC2 injects secrets there).
+        return init_settings, dotenv_settings, env_settings, file_secret_settings
+
     @model_validator(mode="after")
     def validate_llm_and_mcp_settings(self) -> "Settings":
         if self.llm_provider is None:
@@ -337,8 +349,10 @@ class Settings(BaseSettings):
 # ---------------------------------------------------------------------------
 def get_settings() -> Settings:
     """Load settings from environment, finding .env by walking up from cwd."""
+    from workshop_shared.env_hydration import hydrate_workshop_env
     from workshop_shared.workshop_context import find_env_file
 
+    hydrate_workshop_env()
     env_file = find_env_file()
     if env_file is not None:
         return Settings(_env_file=env_file)
