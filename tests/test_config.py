@@ -112,14 +112,18 @@ def test_enable_splunk_cloud_mcp_disabled_when_credentials_missing() -> None:
     assert settings.enable_splunk_cloud_mcp is False
 
 
-def test_enable_splunk_otel_disabled_when_token_missing() -> None:
+def test_enable_splunk_otel_enabled_without_ingest_token() -> None:
     settings = Settings(enable_splunk_otel=True)
-    assert settings.enable_splunk_otel is False
-
-
-def test_enable_splunk_otel_stays_enabled_with_token() -> None:
-    settings = Settings(enable_splunk_otel=True, splunk_access_token="ingest-token")
     assert settings.enable_splunk_otel is True
+    assert settings.otel_collector_endpoint == "http://localhost:4318"
+
+
+def test_enable_splunk_otel_custom_collector_endpoint() -> None:
+    settings = Settings(
+        enable_splunk_otel=True,
+        otel_collector_endpoint="http://127.0.0.1:4318",
+    )
+    assert settings.otel_collector_endpoint == "http://127.0.0.1:4318"
 
 
 def test_empty_enable_flags_default_false(monkeypatch: pytest.MonkeyPatch) -> None:

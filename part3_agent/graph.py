@@ -351,36 +351,48 @@ def build_part3_graph(
             else:
                 updates["alert_load_error"] = error
                 user_text = state.get("user_message") or ""
-                sub_result = await identify_subgraph.ainvoke(
-                    {
-                        "messages": [
-                            HumanMessage(
-                                content=(
-                                    "Find the alert/incident for this investigation. "
-                                    f"Context metadata: {json.dumps(context)}\n\n"
-                                    f"User message:\n{user_text}"
+                try:
+                    sub_result = await identify_subgraph.ainvoke(
+                        {
+                            "messages": [
+                                HumanMessage(
+                                    content=(
+                                        "Find the alert/incident for this investigation. "
+                                        f"Context metadata: {json.dumps(context)}\n\n"
+                                        f"User message:\n{user_text}"
+                                    )
                                 )
-                            )
-                        ]
-                    },
-                    config=RunnableConfig(
-                        **{
-                            **dict(node_config),
-                            "recursion_limit": 8,
+                            ]
+                        },
+                        config=RunnableConfig(
+                            **{
+                                **dict(node_config),
+                                "recursion_limit": 8,
+                            }
+                        ),
+                    )
+                    sub_messages = sub_result.get("messages", [])
+                    updates["messages"] = sub_messages
+                    retry_text = _last_ai_text(sub_messages)
+                    if retry_text:
+                        context_with_summary = {
+                            **context,
+                            "identify_retry_summary": retry_text[:2000],
                         }
-                    ),
-                )
-                sub_messages = sub_result.get("messages", [])
-                updates["messages"] = sub_messages
-                retry_text = _last_ai_text(sub_messages)
-                if retry_text:
-                    context_with_summary = {**context, "identify_retry_summary": retry_text[:2000]}
-                    alert, retry_error = await fetch_alert_payload(settings, context_with_summary)
-                    if alert is not None:
-                        updates["alert_payload"] = alert
-                        updates["alert_load_error"] = None
-                    elif retry_error and not updates.get("alert_load_error"):
-                        updates["alert_load_error"] = retry_error
+                        alert, retry_error = await fetch_alert_payload(
+                            settings, context_with_summary
+                        )
+                        if alert is not None:
+                            updates["alert_payload"] = alert
+                            updates["alert_load_error"] = None
+                        elif retry_error and not updates.get("alert_load_error"):
+                            updates["alert_load_error"] = retry_error
+                except GraphRecursionError:
+                    _logger.warning("identify subgraph hit recursion_limit=8")
+                    if not updates.get("alert_load_error"):
+                        updates["alert_load_error"] = (
+                            "Identify step hit the tool loop limit before resolving the alert"
+                        )
 
         log_node_exit(node=node, alert_found=str(bool(updates.get("alert_payload"))))
         log_node_snapshot(

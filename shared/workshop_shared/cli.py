@@ -12,6 +12,7 @@ from workshop_shared.cli_helpers import (
     run_slack_doctor,
 )
 from workshop_shared.config import get_settings
+from workshop_shared.mcp.bridge import _format_mcp_error
 from workshop_shared.slack.listener import run_slack_listener
 from workshop_shared.workshop_context import (
     PART_LABELS,
@@ -115,7 +116,7 @@ def chat(
         typer.echo(f"Configuration error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
     except Exception as exc:
-        typer.echo(f"Agent error: {exc}", err=True)
+        typer.echo(f"Agent error: {_format_mcp_error(exc)}", err=True)
         raise typer.Exit(code=1) from exc
     if not settings.agent_log_trace:
         typer.echo(response)

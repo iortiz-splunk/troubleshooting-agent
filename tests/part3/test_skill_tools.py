@@ -46,7 +46,7 @@ def test_load_log_index_catalog_parses_frontmatter() -> None:
     catalog = load_log_index_catalog(catalog_path=LOG_INDEX_CATALOG_PATH)
     assert catalog is not None
     assert catalog.get("tenant") == "o11y-workshop-amer"
-    assert catalog.get("default_index") == "splunk4rookies-workshop"
+    assert catalog.get("default_index") == "k8s-apps"
     products = catalog.get("products")
     assert isinstance(products, dict)
     assert "apm" in products
@@ -57,7 +57,7 @@ def test_format_log_index_catalog_for_apm() -> None:
         "apm",
         service_name="Verification",
     )
-    assert "splunk4rookies-workshop" in text
+    assert "k8s-apps" in text
     assert "kube:container:verification" in text
     assert "_internal" in text
     assert "do not search" in text
@@ -66,4 +66,4 @@ def test_format_log_index_catalog_for_apm() -> None:
 def test_format_log_index_catalog_unknown_product_uses_defaults() -> None:
     catalog = load_log_index_catalog(catalog_path=LOG_INDEX_CATALOG_PATH)
     text = format_log_index_catalog_for_product("unknown", catalog=catalog)
-    assert "splunk4rookies-workshop" in text or text == ""
+    assert "k8s-apps" in text or text == ""

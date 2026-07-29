@@ -1,0 +1,9 @@
+{{- $level := .Level -}}
+{{- $class := "" -}}
+{{- if eq $level 2 -}}
+  {{- $class = "section-heading section-heading--h2" -}}
+{{- else if eq $level 3 -}}
+  {{- $class = "section-heading section-heading--h3" -}}
+{{- end -}}
+{{- $display := partial "title-case.html" .Text -}}
+<h{{ $level }} id="{{ .Anchor | safeURL }}"{{- with $class }} class="{{ . }}"{{- end -}}>{{ $display | safeHTML }}</h{{ $level }}>

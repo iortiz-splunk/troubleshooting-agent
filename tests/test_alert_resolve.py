@@ -130,6 +130,20 @@ def test_pick_matching_alert_returns_none_when_anchor_missing_from_results() -> 
     assert match is None
 
 
+def test_parse_o11y_alert_context_extracts_workshop_cli_prompt() -> None:
+    text = (
+        "Troubleshoot the Splunk Observability alert: payment service in "
+        "sre-agent-workshop environment. DetectorId HNcv52_AwAA. "
+        "Rule: SRE Agent - PaymentService High Error Rate. "
+        "Find root cause of the high error rate and confirm whether it is resolved."
+    )
+    context = parse_o11y_alert_context(text)
+    assert context["service"] == "payment"
+    assert context["environment"] == "sre-agent-workshop"
+    assert context["detector_id"] == "HNcv52_AwAA"
+    assert context["rule"] == "SRE Agent - PaymentService High Error Rate"
+
+
 def test_parse_o11y_alert_context_extracts_detector_id() -> None:
     text = (
         'Rule "ivortiz-high-latency-bad-capital" triggered.\n'

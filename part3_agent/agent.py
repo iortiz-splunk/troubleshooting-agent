@@ -30,6 +30,7 @@ from workshop_shared.observability.logging_trace import (
     new_chat_investigation_id,
 )
 from workshop_shared.observability.otel import span as otel_span
+from workshop_shared.slack.messages import parse_o11y_alert_context
 from workshop_shared.tools.base import get_tools
 
 
@@ -67,6 +68,9 @@ async def _run_chat_async(
     inv_id = investigation_id or new_chat_investigation_id()
     metadata = dict(investigation_metadata) if investigation_metadata else {}
     metadata.setdefault("workshop_part", "part3_agent")
+    if source == "cli":
+        for key, value in parse_o11y_alert_context(user_message).items():
+            metadata.setdefault(key, value)
     if source == "slack":
         from workshop_shared.slack.alert_resolve import enrich_alert_context
 

@@ -55,6 +55,8 @@ Loading differs by part — same file format, different orchestration:
 
 Part 3 also injects the **log index catalog** (`search-logs/indexes.md`) into the investigate prompt so the agent searches the correct Splunk index before probing the cluster.
 
+See [Part 3 — Full Workflow]({{< ref "9-part3-full-workflow" >}}) for a side-by-side Galileo trace comparison — Part 2 loads all skills upfront in **`skill_router`**; Part 3 loads them under each graph node.
+
 ## Create a New Skill Playbook
 
 ### Create the Skill Directory
@@ -128,7 +130,7 @@ Never put secrets in skill files — use environment variables and `.env` for cr
 
 ```bash
 cd part2_agent
-troubleshooting-agent chat "investigate latency on Verification"
+troubleshooting-agent chat "Investigate latency on payment in the sre-agent-workshop environment"
 # Terminal trace should show: skill loaded=<your-skill>
 ```
 
@@ -136,9 +138,8 @@ troubleshooting-agent chat "investigate latency on Verification"
 
 ```bash
 cd part3_agent
-troubleshooting-agent chat "troubleshoot this APM alert"
-# Galileo / terminal trace should show investigate node + skills_loaded
-pytest tests/part3/test_skill_tools.py -q
+troubleshooting-agent chat "Troubleshoot the Splunk Observability alert: payment service in sre-agent-workshop environment. DetectorId HNcv52_AwAA. Rule: SRE Agent - PaymentService High Error Rate. Find root cause of the high error rate and confirm whether it is resolved."
+# Galileo / terminal trace should show part3_investigation nodes + load_skill:* spans
 ```
 
 Verify: correct tools called, parameters match the playbook, and the agent does not skip mandatory steps (e.g. log search).
@@ -212,7 +213,7 @@ What makes this skill effective:
 
 1. **Explicit prerequisite** — do not conclude until `splunk_run_query` runs (when Splunk MCP is connected).
 2. **Catalog-first workflow** — use `indexes.md` before `splunk_get_indexes`.
-3. **Copy-paste SPL patterns** — scoped to the workshop tenant (`splunk4rookies-workshop`, `kube:container:*`, `httpevent`).
+3. **Copy-paste SPL patterns** — scoped to the workshop tenant (`k8s-apps`, `kube:container:*`, `httpevent`).
 4. **Companion files** — `reference.md` for field names; `indexes.md` for facilitator-maintained index discovery.
 
 Snippet from the workflow section:
@@ -268,8 +269,8 @@ The workshop lab asks you to complete the **`error-rate`** skill using `latency-
 2. Run Part 2 on an error-rate alert.
 3. Confirm the trace shows `skill loaded=error-rate` and at least two MCP calls.
 
-Details: [`part2_agent/README.md`](https://github.com/iortiz-splunk/troubleshooting-agent/blob/main/part2_agent/README.md).
+Details: [Part 2 — Skill Playbooks]({{< ref "8-part2-skill-playbooks" >}}).
 
 ---
 
-**Next:** Continue with setup and **Part 1** when you are ready to run the baseline agent, or jump to **Part 2** to see skill injection in action.
+**Next:** Continue with setup and **Part 1** when you are ready to run the baseline agent.

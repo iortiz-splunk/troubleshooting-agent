@@ -46,6 +46,26 @@ def test_splunk_enterprise_mcp_params() -> None:
     assert "Authorization: Bearer bearer-token" in params.args
 
 
+def test_mcp_remote_tls_insecure_env() -> None:
+    settings = Settings(
+        mcp_tls_insecure=True,
+        splunk_cloud_mcp_url="https://example.com/mcp",
+        splunk_cloud_mcp_bearer_token="jwt-bearer",
+    )
+    params = splunk_cloud_mcp_params(settings)
+    assert params.env == {"NODE_TLS_REJECT_UNAUTHORIZED": "0"}
+
+
+def test_mcp_remote_tls_ca_certs_env() -> None:
+    settings = Settings(
+        mcp_tls_ca_certs="/etc/ssl/certs/staging-ca.pem",
+        splunk_cloud_mcp_url="https://example.com/mcp",
+        splunk_cloud_mcp_bearer_token="jwt-bearer",
+    )
+    params = splunk_cloud_mcp_params(settings)
+    assert params.env == {"NODE_EXTRA_CA_CERTS": "/etc/ssl/certs/staging-ca.pem"}
+
+
 def test_o11y_gateway_params_missing_token() -> None:
     with pytest.raises(ValueError, match="SPLUNK_O11Y_API_TOKEN"):
         splunk_o11y_gateway_params(

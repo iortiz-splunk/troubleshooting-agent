@@ -21,8 +21,8 @@ Any Splunk Observability alert from Slack before deeper investigation.
 - time_range: {"start": "-1h", "stop": "now"}
 
 ## Tool sequence
-1. o11y_search_alerts_or_incidents — params.service_name, params.environment_name, params.time_range
-2. Capture eventId from results for cross-referencing in Observability Cloud
+1. o11y_search_alerts_or_incidents — params.service_name, params.environments (list), params.time_range. Omit severity unless the user asked for it.
+2. Capture eventId from results when present — **if alerts is empty, continue to the next playbook step (metrics), do not stop.**
 
 ## Response template
 - Alert status (active / cleared)

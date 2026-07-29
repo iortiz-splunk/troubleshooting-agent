@@ -121,6 +121,16 @@ class Settings(BaseSettings):
         default=True,
         description="Pass --transport http-only --allow-http to mcp-remote",
     )
+    mcp_tls_insecure: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("mcp_tls_insecure", "MCP_TLS_INSECURE"),
+        description="Set NODE_TLS_REJECT_UNAUTHORIZED=0 for mcp-remote (self-signed certs only)",
+    )
+    mcp_tls_ca_certs: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("mcp_tls_ca_certs", "MCP_TLS_CA_CERTS"),
+        description="CA bundle path for mcp-remote (NODE_EXTRA_CA_CERTS)",
+    )
 
     # Splunk Observability Cloud (o11y tools on Splunk Cloud MCP gateway)
     enable_splunk_o11y: bool = Field(
@@ -227,19 +237,25 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("agent_log_dir", "AGENT_LOG_DIR"),
     )
 
-    # Splunk OTel (APM traces — direct ingest; separate from o11y MCP API token)
+    # Agent OTel (export traces/metrics to a local OpenTelemetry Collector)
     enable_splunk_otel: bool = Field(
         default=False,
         validation_alias=AliasChoices("enable_splunk_otel", "ENABLE_SPLUNK_OTEL"),
+        description="Export agent traces/metrics via OTLP to a local collector",
     )
     otel_service_name: str = Field(
         default="troubleshooting-agent",
         validation_alias=AliasChoices("otel_service_name", "OTEL_SERVICE_NAME"),
     )
-    splunk_access_token: str | None = Field(
+    otel_collector_endpoint: str = Field(
+        default="http://localhost:4318",
+        description="OTLP/HTTP base URL for the local OpenTelemetry Collector",
+        validation_alias=AliasChoices("otel_collector_endpoint", "OTEL_COLLECTOR_ENDPOINT"),
+    )
+    otel_resource_attributes: str | None = Field(
         default=None,
-        description="Splunk ingest token for OTel (SPLUNK_ACCESS_TOKEN)",
-        validation_alias=AliasChoices("splunk_access_token", "SPLUNK_ACCESS_TOKEN"),
+        description="Comma-separated resource attributes, e.g. deployment.environment=demo",
+        validation_alias=AliasChoices("otel_resource_attributes", "OTEL_RESOURCE_ATTRIBUTES"),
     )
 
     # Galileo agent observability
@@ -365,10 +381,6 @@ class Settings(BaseSettings):
                 "SLACK_APP_TOKEN": self.slack_app_token,
                 "SLACK_SIGNING_SECRET": self.slack_signing_secret,
             },
-        )
-        self.enable_splunk_otel = _feature_enabled(
-            self.enable_splunk_otel,
-            {"SPLUNK_ACCESS_TOKEN": self.splunk_access_token},
         )
         if self.enable_galileo:
             missing = [

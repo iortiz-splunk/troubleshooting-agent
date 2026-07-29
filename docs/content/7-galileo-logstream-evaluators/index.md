@@ -20,7 +20,7 @@ Evaluators answer questions that are hard to judge by eye across dozens of runs:
 
 | Requirement | Why |
 |-------------|-----|
-| [Part 1 investigation completed](/troubleshooting-agent/6-part1-baseline-agent/) | We will use the session/trace from the previous section to compare the before and after enabling evaluators |
+| [Part 1 investigation completed]({{< ref "6-part1-baseline-agent" >}}) | We will use the session/trace from the previous section to compare the before and after enabling evaluators |
 | `.env` Galileo settings saved | Same `GALILEO_PROJECT` and `GALILEO_LOG_STREAM` you used in Part 1 |
 | Galileo console access | Open the project your facilitator shared (or the one you created with `GALILEO_PROJECT`) |
 
@@ -97,9 +97,7 @@ After you apply evaluators and click **Not Now** on past logs, re-run the same P
 
 ### Run the investigation
 
-Re-run Part 1 with the **same service** and include the **workshop environment** in your prompt. Without an environment name, MCP tools often fail validation on the first call — the agent may stop after asking for clarification instead of investigating.
-
-Use the environment your facilitator provides (for example, `splunk-hipster`):
+Re-run the same Part 1 investigation. Use the workshop defaults — service **`payment`**, environment **`sre-agent-workshop`**:
 
 {{< tabs >}}
 {{% tab title="Script" open="true" %}}
@@ -108,13 +106,13 @@ Use the environment your facilitator provides (for example, `splunk-hipster`):
 cd ~/troubleshooting-agent
 source .venv/bin/activate
 cd part1_agent
-troubleshooting-agent chat "Why does paymentservice have errors in the splunk-hipster environment?"
+troubleshooting-agent chat "Why does payment have errors in the sre-agent-workshop environment?"
 ```
 
 {{% /tab %}}
 {{< /tabs >}}
 
-You can also paste alert text from the facilitator's demo or substitute a different service or environment if instructed.
+You can also paste alert text from the facilitator's demo. Use **`payment`** and **`sre-agent-workshop`** when asking about the workshop demo service.
 
 
 ### Review the run in Galileo
@@ -153,9 +151,9 @@ Click into each **`tools`** span to inspect MCP inputs, outputs, and span-level 
 
 {{< diagram src="images/part1-galileo-trace-with-env.png" alt="Galileo Agent Stream showing a deeper Part 1 run with multiple MCP tools and low evaluator scores" caption="With the environment in the prompt, the agent calls alert search and APM error tools — but Action Completion (SLM) can still be 1% when the answer stops at suggested next steps instead of a root cause." width="960" >}}
 
-Work through this checklist with the investigation prompt your facilitator provides (errors on **paymentservice** in your workshop environment is the default):
+Work through this checklist using **`payment`** in environment **`sre-agent-workshop`**:
 
-1. Run `troubleshooting-agent chat` with the **service and environment** in the query (see command above).
+1. Run `troubleshooting-agent chat "Why does payment have errors in the sre-agent-workshop environment?"` (same as Part 1).
 2. Open Galileo **Agent Stream** — find **both** sessions using the session picker (for example, **Session 2 of 3** for the scored re-run).
 3. On the **newest** session, expand the trace tree — confirm multiple **`tools`** spans ran (not just a single environment lookup).
 4. Click each MCP span — do the numbers and facts in the **chat** response match the tool JSON?
@@ -217,4 +215,4 @@ Part 1 intentionally has **no playbook**, so results can range from weak to stro
 
 ---
 
-**Next:** Part 2 — Skill Playbooks (coming soon) — re-run the same investigation and compare evaluator scores after playbooks guide tool selection.
+**Next:** [Part 2 — Skill Playbooks]({{< ref "8-part2-skill-playbooks" >}}) — run the skill-injected agent, compare Galileo evaluators, and author your own playbook.

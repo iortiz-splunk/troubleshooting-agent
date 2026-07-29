@@ -20,6 +20,29 @@ def _build_mcp_remote_args(settings: Settings, url: str, extra_headers: list[str
     return args
 
 
+def mcp_remote_stdio_env(settings: Settings) -> dict[str, str] | None:
+    """
+    Optional Node.js env for the mcp-remote subprocess.
+
+    mcp-remote uses Node fetch/HTTPS; self-signed staging certs need either a CA
+    bundle (preferred) or MCP_TLS_INSECURE=true (workshop/staging only).
+    """
+    env: dict[str, str] = {}
+    if settings.mcp_tls_ca_certs:
+        env["NODE_EXTRA_CA_CERTS"] = settings.mcp_tls_ca_certs
+    if settings.mcp_tls_insecure:
+        env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"
+    return env or None
+
+
+def _stdio_params(settings: Settings, args: list[str]) -> StdioServerParameters:
+    return StdioServerParameters(
+        command=resolve_mcp_npx_command(settings),
+        args=args,
+        env=mcp_remote_stdio_env(settings),
+    )
+
+
 def splunk_o11y_gateway_params(settings: Settings) -> StdioServerParameters:
     """
     Splunk Observability Cloud via the Splunk Cloud MCP gateway.
@@ -43,9 +66,9 @@ def splunk_o11y_gateway_params(settings: Settings) -> StdioServerParameters:
         f"X-SF-TOKEN:{settings.splunk_o11y_api_token}",
     ]
 
-    return StdioServerParameters(
-        command=resolve_mcp_npx_command(settings),
-        args=_build_mcp_remote_args(settings, settings.splunk_o11y_gateway_url, headers),
+    return _stdio_params(
+        settings,
+        _build_mcp_remote_args(settings, settings.splunk_o11y_gateway_url, headers),
     )
 
 
@@ -69,9 +92,9 @@ def splunk_cloud_mcp_params(settings: Settings) -> StdioServerParameters:
     if settings.splunk_cloud_mcp_tenant:
         headers.extend(["--header", f"splunk_tenant:{settings.splunk_cloud_mcp_tenant}"])
 
-    return StdioServerParameters(
-        command=resolve_mcp_npx_command(settings),
-        args=_build_mcp_remote_args(settings, settings.splunk_cloud_mcp_url, headers),
+    return _stdio_params(
+        settings,
+        _build_mcp_remote_args(settings, settings.splunk_cloud_mcp_url, headers),
     )
 
 
@@ -89,7 +112,7 @@ def splunk_enterprise_mcp_params(settings: Settings) -> StdioServerParameters:
         f"Authorization: Bearer {settings.splunk_mcp_bearer_token}",
     ]
 
-    return StdioServerParameters(
-        command=resolve_mcp_npx_command(settings),
-        args=_build_mcp_remote_args(settings, settings.splunk_mcp_url, headers),
+    return _stdio_params(
+        settings,
+        _build_mcp_remote_args(settings, settings.splunk_mcp_url, headers),
     )

@@ -13,7 +13,7 @@
     <span class="chapter-header__workshop-line" aria-hidden="true"></span>
     <span class="chapter-header__workshop-name">{{ .Site.Params.workshopTitle }}</span>
   </div>
-  <h1 class="chapter-header__title">{{ .Title }}</h1>
+  <h1 class="page-title chapter-header__title">{{ .Title }}</h1>
   {{ if or .Params.duration .Params.author }}
   <div class="chapter-header__meta">
     {{ with .Params.duration }}

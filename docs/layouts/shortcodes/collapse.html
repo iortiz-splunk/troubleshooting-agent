@@ -1,0 +1,11 @@
+{{/*
+  Collapsible block (closed by default). Pass title= for the summary label.
+  {{< collapse title="Splunk Observability MCP tools" >}}
+  | Tool | Use for |
+  ...
+  {{< /collapse >}}
+*/}}
+<details class="collapse"{{ if eq (.Get "open") "true" }} open{{ end }}>
+  <summary class="collapse__summary">{{ .Get "title" | default "Show details" }}</summary>
+  <div class="collapse__body">{{ .Inner | .Page.RenderString }}</div>
+</details>

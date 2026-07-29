@@ -69,7 +69,7 @@ Combine with **`AND`**; start **narrow** (index + sourcetype + time), then widen
 
 **APM service errors (catalog index):**
 ```spl
-index=splunk4rookies-workshop earliest=-1h latest=now
+index=k8s-apps earliest=-1h latest=now
 (sourcetype="kube:container:paymentservice" OR sourcetype=httpevent)
 (severity=error OR http.resp.status>=400 OR _raw="*error*")
 | head 50
@@ -77,21 +77,21 @@ index=splunk4rookies-workshop earliest=-1h latest=now
 
 **Trace ID from exemplar:**
 ```spl
-index=splunk4rookies-workshop earliest=-1h latest=now
+index=k8s-apps earliest=-1h latest=now
 trace_id="<trace_id_from_apm>"
 | head 50
 ```
 
 **K8s pod restart (IM):**
 ```spl
-index=splunk4rookies-workshop earliest=-1h latest=now
+index=k8s-apps earliest=-1h latest=now
 sourcetype=kube:events _raw="*<pod-name>*"
 | head 50
 ```
 
 **Quick volume check:**
 ```spl
-index=splunk4rookies-workshop earliest=-1h latest=now
+index=k8s-apps earliest=-1h latest=now
 sourcetype=httpevent
 | stats count by sourcetype
 ```

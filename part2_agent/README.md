@@ -25,14 +25,16 @@ With `AGENT_LOG_TRACE=true` (default), the terminal shows a structured trace inc
 
 ```bash
 cd part2_agent
-troubleshooting-agent chat "Investigate latency on Verification"
-troubleshooting-agent chat "Investigate elevated 5xx on Verification"
+troubleshooting-agent chat "Investigate latency on payment in the sre-agent-workshop environment"
+troubleshooting-agent chat "Investigate elevated 5xx errors on payment in the sre-agent-workshop environment"
 troubleshooting-agent slack-listen
 ```
 
+Workshop demo defaults: service **`payment`**, environment **`sre-agent-workshop`**.
+
 ## Facilitator script (~25–35 min)
 
-1. **Recap Part 1** (3 min) — same Verification latency alert; note inconsistent tool order.
+1. **Recap Part 1** (3 min) — same `payment` latency/errors alert in `sre-agent-workshop`; note inconsistent tool order.
 2. **Skill anatomy** (5 min) — open `skills/latency-spike/SKILL.md`: frontmatter, tool sequence, do-not rules.
 3. **Live demo** (8 min) — run Part 2 on a latency alert; trace shows `skill loaded=latency-spike`; expect `o11y_search_alerts_or_incidents` then `o11y_get_apm_service_latency`.
 4. **Contrast gaps** (3 min) — no exemplar traces, no report template, may pick wrong alert without Part 3 anchoring.
@@ -56,7 +58,7 @@ Briefly show **manual** wiring: paste a playbook section into `prompt.py`, run o
 3. Write the tool sequence: search alerts → `o11y_get_apm_service_errors_and_requests`.
 4. Add 2–3 interpretation bullets (error count vs request volume).
 5. Add at least one **Do not** rule.
-6. Run: `troubleshooting-agent chat "Investigate elevated 5xx on Verification"` with `AGENT_LOG_TRACE=true`.
+6. Run: `troubleshooting-agent chat "Investigate elevated 5xx errors on payment in the sre-agent-workshop environment"` with `AGENT_LOG_TRACE=true`.
 7. Confirm trace shows `skill loaded=error-rate` and at least two MCP tool calls.
 
 **Success criteria:**

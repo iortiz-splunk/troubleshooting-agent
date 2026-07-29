@@ -48,7 +48,7 @@ cp .env.example .env
 nano .env
 ```
 
-Add or update these lines (use your instance name from `echo $INSTANCE` — see [Connect to EC2](/troubleshooting-agent/3-connect-ec2/)):
+Add or update these lines (use your instance name from `echo $INSTANCE` — see [Connect to EC2]({{< ref "3-connect-ec2" >}})):
 
 ```bash
 ENABLE_GALILEO=true
@@ -142,4 +142,4 @@ Both commands should report **Ready** before you continue. If either fails, ask 
 
 ---
 
-**Next:** [Part 1 — Baseline Agent](/troubleshooting-agent/6-part1-baseline-agent/) — run your first investigation and review traces in the terminal and Galileo.
+**Next:** [Part 1 — Baseline Agent]({{< ref "6-part1-baseline-agent" >}}) — run your first investigation and review traces in the terminal and Galileo.

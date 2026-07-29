@@ -110,6 +110,14 @@ def _finalize_mcp_arguments(kwargs: dict[str, Any]) -> dict[str, Any]:
     return kwargs
 
 
+def normalize_mcp_arguments(
+    schema: dict[str, Any] | None,
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    """Public MCP argument normalizer (load tests, direct call_tool helpers)."""
+    return _normalize_mcp_arguments(schema, kwargs)
+
+
 def _normalize_mcp_arguments(
     schema: dict[str, Any] | None,
     kwargs: dict[str, Any],
@@ -252,6 +260,34 @@ async def check_mcp_servers(settings: Settings) -> list[McpServerInfo]:
     return results
 
 
+def _format_mcp_error(exc: BaseException) -> str:
+    """Unwrap TaskGroup/ExceptionGroup and add TLS hints when relevant."""
+    if isinstance(exc, BaseExceptionGroup):
+        messages = [_format_mcp_error(sub) for sub in exc.exceptions]
+        if len(messages) == 1:
+            return messages[0]
+        return f"{exc}: {'; '.join(messages)}"
+
+    message = str(exc).strip() or exc.__class__.__name__
+    lowered = message.lower()
+    if any(
+        marker in lowered
+        for marker in (
+            "self signed certificate",
+            "self-signed certificate",
+            "unable to verify the first certificate",
+            "unable_to_verify_leaf_signature",
+            "certificate verify failed",
+        )
+    ):
+        return (
+            f"{message} — for staging/self-signed hosts set MCP_TLS_INSECURE=true in .env "
+            "(or MCP_TLS_CA_CERTS=/path/to/ca.pem). In Cursor, add "
+            '"env": {"NODE_TLS_REJECT_UNAUTHORIZED": "0"} to the MCP server block.'
+        )
+    return message
+
+
 async def _check_server(
     name: str,
     params: Any,
@@ -265,4 +301,10 @@ async def _check_server(
             ]
             return McpServerInfo(name=name, ok=True, tool_count=len(names), tool_names=names)
     except Exception as exc:
-        return McpServerInfo(name=name, ok=False, tool_count=0, tool_names=[], error=str(exc))
+        return McpServerInfo(
+            name=name,
+            ok=False,
+            tool_count=0,
+            tool_names=[],
+            error=_format_mcp_error(exc),
+        )

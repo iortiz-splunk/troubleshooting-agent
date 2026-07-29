@@ -178,7 +178,7 @@ def test_search_logs_skill_loads() -> None:
     assert content is not None
     assert "splunk_run_query" in content
     assert "required before concluding" in content.lower()
-    assert "splunk4rookies-workshop" in content or "catalog" in content.lower()
+    assert "k8s-apps" in content or "catalog" in content.lower()
 
 
 def test_investigate_user_content_includes_index_catalog() -> None:
@@ -188,7 +188,7 @@ def test_investigate_user_content_includes_index_catalog() -> None:
         investigation_metadata=None,
         product_type="apm",
     )
-    assert "splunk4rookies-workshop" in content
+    assert "k8s-apps" in content
     assert "Log index catalog" in content
     assert "index=main" not in content
 
