@@ -17,7 +17,7 @@ Part 1 uses **MCP tools only** (no built-in stubs, no skills).
 cd part1_agent
 troubleshooting-agent doctor
 troubleshooting-agent mcp-doctor
-troubleshooting-agent chat "Why is Verification slow?"
+troubleshooting-agent chat "Why does payment have errors in the sre-agent-workshop environment?"
 troubleshooting-agent slack-listen
 ```
 

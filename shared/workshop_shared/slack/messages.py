@@ -55,7 +55,12 @@ _O11Y_ALERT_ID_LABEL_RE = re.compile(
     re.IGNORECASE,
 )
 _O11Y_DETECTOR_ID_LABEL_RE = re.compile(
-    r"(?:detector[_\s-]?id|detectorId)\s*[:=]\s*([A-Za-z0-9_-]+)",
+    r"(?:detector[_\s-]?id|detectorId)\s*(?:[:=]\s*|\s+)([A-Za-z0-9_-]+)",
+    re.IGNORECASE,
+)
+_O11Y_RULE_COLON_RE = re.compile(r"Rule:\s*(.+?)(?:\.\s|\.\s*$|$)", re.IGNORECASE)
+_O11Y_WORKSHOP_SERVICE_ENV_RE = re.compile(
+    r"\b([a-z][a-z0-9_-]*)\s+service\s+in\s+([a-z0-9_-]+)\s+environment\b",
     re.IGNORECASE,
 )
 _O11Y_DETECTOR_URL_RE = re.compile(r"/detector/([A-Za-z0-9_-]+)", re.IGNORECASE)
@@ -309,6 +314,15 @@ def parse_o11y_alert_context(text: str) -> dict[str, str]:
     rule = _O11Y_RULE_TRIGGERED_RE.search(text)
     if rule:
         context["rule"] = rule.group(1).strip()
+    else:
+        rule_colon = _O11Y_RULE_COLON_RE.search(text)
+        if rule_colon:
+            context["rule"] = rule_colon.group(1).strip().rstrip(".")
+
+    workshop_pair = _O11Y_WORKSHOP_SERVICE_ENV_RE.search(text)
+    if workshop_pair:
+        context.setdefault("service", workshop_pair.group(1).strip())
+        context.setdefault("environment", workshop_pair.group(2).strip())
 
     severity = _O11Y_SEVERITY_RE.search(text)
     if severity:

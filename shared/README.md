@@ -52,6 +52,10 @@ Auth uses `X-SF-REALM` + `X-SF-TOKEN` (not Splunk Cloud Bearer).
 | `ENABLE_SPLUNK_CLOUD_MCP` | Platform MCP (Bearer + tenant) |
 | `ENABLE_SPLUNK_MCP` | On-prem Splunk Enterprise MCP |
 | `MCP_NPX_COMMAND` | Default `npx` — runs `mcp-remote` over stdio |
+| `MCP_TLS_INSECURE` | Set `true` to pass `NODE_TLS_REJECT_UNAUTHORIZED=0` to mcp-remote (staging/self-signed certs only) |
+| `MCP_TLS_CA_CERTS` | Path to a CA bundle for mcp-remote (`NODE_EXTRA_CA_CERTS`; preferred over insecure) |
+
+**Self-signed TLS:** Splunk Cloud MCP on staging often uses a self-signed certificate. mcp-remote runs under Node.js, so the agent passes TLS settings via subprocess env (same as Cursor’s `"env"` block on the MCP server). For a quick workshop workaround, add `MCP_TLS_INSECURE=true` to `.env`. For production, use `MCP_TLS_CA_CERTS` pointing at your CA PEM instead.
 
 ### Slack demo
 
@@ -74,7 +78,12 @@ Run `slack-listen` on any workshop part after `slack-doctor` passes. Resolved/cl
 | `AGENT_LOG_DEBUG` | Verbose MCP tool-arg previews in terminal |
 | `AGENT_LOG_DIR` | Per-investigation JSONL files (default: `shared/logs/investigations`; empty to disable) |
 | `LOG_FORMAT` | `text` (default) or `json` for log lines |
-| `ENABLE_SPLUNK_OTEL` | Splunk OTel APM for the agent process |
+| `ENABLE_SPLUNK_OTEL` | Export agent traces/metrics via OTLP to a local OpenTelemetry Collector |
+| `OTEL_SERVICE_NAME` | Service name on exported spans (default: `troubleshooting-agent`) |
+| `OTEL_COLLECTOR_ENDPOINT` | OTLP/HTTP base URL for the collector (default: `http://localhost:4318`) |
+| `OTEL_RESOURCE_ATTRIBUTES` | Optional comma-separated resource attrs, e.g. `deployment.environment=demo` |
+
+Agent telemetry goes to the **local collector** only. The collector (see workshop docs) holds the Splunk ingest token and realm — the agent does not need `SPLUNK_ACCESS_TOKEN` or `SPLUNK_O11Y_REALM` for export.
 | `ENABLE_GALILEO` | Galileo session tracing |
 | `GALILEO_API_KEY` | Galileo API key |
 | `GALILEO_CONSOLE_URL` | Your Galileo console URL (required) |
@@ -91,7 +100,7 @@ With `AGENT_LOG_TRACE=true` (default), every part prints a structured trace:
 ══════════════════════════════════════════════════════════════
  Investigation  chat:abc123  |  part2  |  cli
 ──────────────────────────────────────────────────────────────
- Query: Investigate latency on Verification
+ Query: Investigate latency on payment in the sre-agent-workshop environment
  Skill: latency-spike
  LLM: ollama  |  MCP tools available: 12
 ══════════════════════════════════════════════════════════════

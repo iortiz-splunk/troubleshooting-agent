@@ -61,13 +61,19 @@ class GalileoSession:
 # Galileo SDK reads GALILEO_* from os.environ; copy from Settings when set.
 # ---------------------------------------------------------------------------
 def _apply_galileo_env(settings: Settings) -> None:
+    """
+    Copy resolved Settings into os.environ for the Galileo SDK.
+
+    Always assign (do not setdefault): hydrate_workshop_env may have loaded
+    placeholder shell values like GALILEO_API_KEY=GALILEO_API_KEY while Settings
+    correctly resolved real credentials from .env.
+    """
     if settings.galileo_api_key:
-        os.environ.setdefault("GALILEO_API_KEY", settings.galileo_api_key)
-    os.environ.setdefault("GALILEO_PROJECT", settings.galileo_project)
-    os.environ.setdefault("GALILEO_LOG_STREAM", settings.galileo_log_stream)
-    # Required when Galileo is enabled — tenant-specific; no SDK default assumed.
+        os.environ["GALILEO_API_KEY"] = settings.galileo_api_key
+    os.environ["GALILEO_PROJECT"] = settings.galileo_project
+    os.environ["GALILEO_LOG_STREAM"] = settings.galileo_log_stream
     if settings.galileo_console_url:
-        os.environ.setdefault("GALILEO_CONSOLE_URL", settings.galileo_console_url)
+        os.environ["GALILEO_CONSOLE_URL"] = settings.galileo_console_url
 
 
 # ---------------------------------------------------------------------------

@@ -28,9 +28,9 @@ If you want to skim the code before running:
 
 ## Run your first investigation
 
-Make sure you completed [Configure Environment](/troubleshooting-agent/5-configure-agent-environment/) — virtual environment installed, `.env` configured, and both doctor commands passing.
+Make sure you completed [Configure Environment]({{< ref "5-configure-agent-environment" >}}) — virtual environment installed, `.env` configured, and both doctor commands passing.
 
-Start with a CLI investigation using the workshop's default APM service:
+Start with a CLI investigation using the workshop defaults — service **`payment`**, environment **`sre-agent-workshop`**:
 
 {{< tabs >}}
 {{% tab title="Script" open="true" %}}
@@ -39,14 +39,14 @@ Start with a CLI investigation using the workshop's default APM service:
 cd ~/troubleshooting-agent
 source .venv/bin/activate
 cd part1_agent
-troubleshooting-agent chat "Why does paymentservice have errors?"
+troubleshooting-agent chat "Why does payment have errors in the sre-agent-workshop environment?"
 ```
 
 {{% /tab %}}
 {{% tab title="Example Output" %}}
 
 ```text
-(.venv) splunk@ip-172-31-19-27:~/troubleshooting-agent/part1_agent$ troubleshooting-agent chat "Why does paymentservice have errors?"
+(.venv) splunk@ip-172-31-19-27:~/troubleshooting-agent/part1_agent$ troubleshooting-agent chat "Why does payment have errors in the sre-agent-workshop environment?"
 INFO Splunk OTel initialized service=troubleshooting-agent
 INFO HTTP Request: POST https://lite-llm-proxy.splunko11y.com/v1/chat/completions "HTTP/1.1 200 OK"
 INFO [inv=chat:5a4dffc6d704] Log file: /home/splunk/troubleshooting-agent/shared/logs/investigations/chat-5a4dffc6d704.jsonl
@@ -54,7 +54,7 @@ INFO [inv=chat:5a4dffc6d704]
 INFO [inv=chat:5a4dffc6d704] ══════════════════════════════════════════════════════════════
 INFO [inv=chat:5a4dffc6d704]  Investigation  chat:5a4dffc6d704  |  part1_agent  |  cli
 INFO [inv=chat:5a4dffc6d704] ──────────────────────────────────────────────────────────────
-INFO [inv=chat:5a4dffc6d704]  Query: Why does paymentservice have errors?
+INFO [inv=chat:5a4dffc6d704]  Query: Why does payment have errors in the sre-agent-workshop environment?
 INFO [inv=chat:5a4dffc6d704]  LLM: openai  |  MCP tools available: 12
 INFO [inv=chat:5a4dffc6d704] ══════════════════════════════════════════════════════════════
 INFO HTTP Request: GET https://api.multitenant.galileocloud.io/healthcheck "HTTP/1.1 200 OK"
@@ -68,34 +68,31 @@ INFO HTTP Request: GET https://api.multitenant.galileocloud.io/ingest/healthz "H
 INFO HTTP Request: POST https://api.multitenant.galileocloud.io/v2/projects/26a65ecc-5b04-43b8-adf0-4aabf5af4b94/sessions/search "HTTP/1.1 200 OK"
 INFO HTTP Request: POST https://api.multitenant.galileocloud.io/v2/projects/26a65ecc-5b04-43b8-adf0-4aabf5af4b94/sessions "HTTP/1.1 200 OK"
 INFO Galileo session=chat-5a4dffc6d704 | part1_agent project=sre-agent-wkshp-shw-2cb1 stream=sre-agent-wkshp console=https://console.multitenant.galileocloud.io
-INFO Retrying request to /chat/completions in 0.404894 seconds
 INFO HTTP Request: POST https://lite-llm-proxy.splunko11y.com/v1/chat/completions "HTTP/1.1 200 OK"
-INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [1] LLM turn 1 — calling tools: o11y_get_apm_services
-INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [2] MCP o11y_get_apm_services — ERROR: 1 validation error for call[get_apm_services] params.environment_name Field required [type=missing, input_value={'service_name': 'paymentservice'}, input_typ...
-INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82      args: {"params":{"service_name":"paymentservice"}}
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [1] LLM turn 1 — calling tools: o11y_search_alerts_or_incidents
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [2] MCP o11y_search_alerts_or_incidents — OK
 INFO HTTP Request: POST https://lite-llm-proxy.splunko11y.com/v1/chat/completions "HTTP/1.1 200 OK"
-INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [2] LLM turn 2 — composing final response (283 chars)
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [2] LLM turn 2 — calling tools: o11y_get_apm_service_errors_and_requests
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [3] MCP o11y_get_apm_service_errors_and_requests — OK
+INFO HTTP Request: POST https://lite-llm-proxy.splunko11y.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO [inv=chat:5a4dffc6d704]  trace_id=963b3abe6a9c149c418f84c5fea67a82 [3] LLM turn 3 — composing final response
 INFO HTTP Request: POST https://api.multitenant.galileocloud.io/ingest/traces/26a65ecc-5b04-43b8-adf0-4aabf5af4b94 "HTTP/1.1 200 OK"
 INFO [inv=chat:5a4dffc6d704] ──────────────────────────────────────────────────────────────
-INFO [inv=chat:5a4dffc6d704]  Done — 2 LLM turns | 0 tool calls | 14.0s
+INFO [inv=chat:5a4dffc6d704]  Done — 3 LLM turns | 2 tool calls | 18.2s
 INFO [inv=chat:5a4dffc6d704]  Log file: /home/splunk/troubleshooting-agent/shared/logs/investigations/chat-5a4dffc6d704.jsonl
 INFO [inv=chat:5a4dffc6d704] ══════════════════════════════════════════════════════════════
 INFO [inv=chat:5a4dffc6d704] 
 INFO [inv=chat:5a4dffc6d704] ──────────────────────────────────────────────────────────────
 INFO [inv=chat:5a4dffc6d704]  Agent response
 INFO [inv=chat:5a4dffc6d704] ──────────────────────────────────────────────────────────────
-INFO [inv=chat:5a4dffc6d704] To investigate the errors in the "paymentservice," I need to know the environment where this service is running (e.g., production, staging, etc.). Could you please provide the environment name? Also, if you want to specify a timeframe for the error investigation, please let me know.
+INFO [inv=chat:5a4dffc6d704] payment in sre-agent-workshop shows elevated errors in the last hour. I found … (summary from MCP tool JSON — your run may differ)
 INFO [inv=chat:5a4dffc6d704] ══════════════════════════════════════════════════════════════
 ```
 
 {{% /tab %}}
 {{< /tabs >}}
 
-You can also paste alert text from the facilitator's demo or substitute a different service name if instructed.
-
-{{< notice title="Tip" style="tip" >}}
-The facilitator may provide sample alert JSON or a specific investigation prompt. Use whatever scenario they share — the observability workflow is the same.
-{{< /notice >}}
+You can also paste alert text from the facilitator's demo. Always include **service** (`payment`) and **environment** (`sre-agent-workshop`) when asking about a specific service.
 
 ## Read the terminal trace
 
@@ -103,7 +100,7 @@ With `AGENT_LOG_TRACE=true` (the default), every run prints a structured trace t
 
 1. **Which MCP tools did the agent call?** — Look for `[n] MCP o11y_...` lines.
 2. **Which tools did it skip?** — A baseline agent often skips traces, logs, or infrastructure correlation.
-3. **Were parameters correct?** — Service names should be exact (e.g. `paymentservice`, not split keywords). Time ranges should use `{"start": "-1h", "stop": "now"}` inside a `params` object.
+3. **Were parameters correct?** — Service should be `payment`, environment `sre-agent-workshop` (exact APM names). Time ranges should use `{"start": "-1h", "stop": "now"}` inside a `params` object.
 4. **Is the answer grounded?** — Does the final response reflect actual JSON from tool results, or does it sound plausible without evidence?
 
 The same events are written to `shared/logs/investigations/<id>.jsonl` for post-workshop review. Each run prints the path at the end (look for `Log file:` in the output).
@@ -115,7 +112,7 @@ Cleared your terminal before you could review the trace? You have two easy optio
   ```bash
   ls -t ~/troubleshooting-agent/shared/logs/investigations/*.jsonl | head -1
   ```
-- **Re-run the same command** — run `troubleshooting-agent chat "Why does paymentservice have errors?"` again. You will get a new trace (and a new Galileo session), but the investigation flow is the same.
+- **Re-run the same command** — run `troubleshooting-agent chat "Why does payment have errors in the sre-agent-workshop environment?"` again. You will get a new trace (and a new Galileo session), but the investigation flow is the same.
 {{< /notice >}}
 
 ## Review the run in Galileo
@@ -135,7 +132,7 @@ Agent
 ├── Agent:agent          ← LLM turn
 ├── should_continue      ← graph routing
 ├── tools
-│   └── o11y_get_apm_environments   ← MCP tool (names vary by run)
+│   └── o11y_get_apm_service_errors_and_requests   ← MCP tool (names vary by run)
 ├── Agent:agent          ← next LLM turn
 └── should_continue
 ```
@@ -150,11 +147,11 @@ Keep the Galileo console open in a browser tab during the workshop. After each i
 
 ## Baseline exercise
 
-Work through this checklist with the investigation prompt your facilitator provides (errors on **paymentservice** is the default):
+Work through this checklist using the workshop defaults — **`payment`** in environment **`sre-agent-workshop`**:
 
 | Step | Action |
 |------|--------|
-| 1 | Run `troubleshooting-agent chat` with the workshop alert or query |
+| 1 | Run `troubleshooting-agent chat "Why does payment have errors in the sre-agent-workshop environment?"` |
 | 2 | Read the terminal trace — list tools called vs. tools skipped |
 | 3 | Open Galileo — find your session and expand agent/tool spans |
 | 4 | Answer: *Did the agent ground its conclusion in MCP data?* |
@@ -174,4 +171,4 @@ Part 1 intentionally has **no playbook**. Expect variation between runs — that
 
 ---
 
-**Next:** [Configure Galileo Log Stream Evaluators](/troubleshooting-agent/7-galileo-logstream-evaluators/) — turn on evaluators to score tool selection, grounding, and hallucination risk on your Part 1 sessions.
+**Next:** [Part 2 — Skill Playbooks]({{< ref "8-part2-skill-playbooks" >}}) — see how keyword-injected skills change investigation quality and Galileo traces.

@@ -15,6 +15,12 @@
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --radius: 8px;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --page-title-size: 3.75rem;
+  --page-title-size-mobile: 2.625rem;
+  --section-title-size: 1.96875rem;
+  --section-title-size-mobile: 1.5rem;
+  --subsection-title-size: 1.59375rem;
+  --subsection-title-size-mobile: 1.25rem;
 }
 
 *,
@@ -210,6 +216,17 @@ a:hover {
   background: var(--bg);
 }
 
+/* Page titles — shared across home hero and chapter headers */
+.page-title {
+  font-size: var(--page-title-size);
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  max-width: var(--content-max);
+}
+
 /* Workshop hero (home page) */
 .workshop-hero {
   margin: -2rem -3rem 2rem;
@@ -222,13 +239,7 @@ a:hover {
 }
 
 .workshop-hero__title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin: 0 0 0.875rem;
-  line-height: 1.12;
-  letter-spacing: -0.03em;
-  color: var(--text);
-  max-width: var(--content-max);
+  margin-bottom: 0.875rem;
 }
 
 .workshop-hero__description {
@@ -278,16 +289,6 @@ a:hover {
   line-height: 1.3;
 }
 
-.chapter-header__title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.12;
-  letter-spacing: -0.03em;
-  color: var(--text);
-  max-width: var(--content-max);
-}
-
 .chapter-header__meta {
   display: flex;
   flex-wrap: wrap;
@@ -311,15 +312,24 @@ a:hover {
   opacity: 0.65;
 }
 
-/* Gradient ribbon divider */
-.section-divider {
+/* Section heading template — chapter divider + prose ## / ### (via render-heading.html) */
+.section-divider,
+.section-heading,
+.prose h2:not(.section-heading),
+.prose h3:not(.section-heading) {
   position: relative;
-  height: 1px;
-  background: var(--border);
-  margin-top: 1.25rem;
+  border-top: 1px solid var(--border);
 }
 
-.section-divider::before {
+.section-divider {
+  height: 0;
+  margin-top: 1.25rem;
+  padding: 0;
+}
+
+.section-divider::before,
+.section-heading--h2::before,
+.prose h2:not(.section-heading)::before {
   content: "";
   position: absolute;
   left: 0;
@@ -330,6 +340,40 @@ a:hover {
   border-radius: 0 1px 1px 0;
 }
 
+.section-heading--h3::before,
+.prose h3:not(.section-heading)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 2.25rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand) 0%, var(--accent-orange) 100%);
+  border-radius: 0 1px 1px 0;
+}
+
+.section-heading--h2,
+.prose h2:not(.section-heading) {
+  font-size: var(--section-title-size);
+  font-weight: 700;
+  margin: 2.75rem 0 1rem;
+  padding-top: 1.25rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.section-heading--h3,
+.prose h3:not(.section-heading) {
+  font-size: var(--subsection-title-size);
+  font-weight: 700;
+  margin: 2rem 0 0.75rem;
+  padding-top: 1rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  line-height: 1.3;
+}
+
 /* Legacy cleanup — removed chapter numeral styles */
 
 /* Prose */
@@ -337,20 +381,6 @@ a:hover {
   font-size: 1rem;
   color: var(--text);
   max-width: var(--content-max);
-}
-
-.prose h2 {
-  font-size: 1.3125rem;
-  font-weight: 700;
-  margin: 2.25rem 0 0.75rem;
-  letter-spacing: -0.01em;
-  padding-top: 0.5rem;
-}
-
-.prose h3 {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  margin: 1.75rem 0 0.5rem;
 }
 
 .prose p {
@@ -454,6 +484,76 @@ a:hover {
   font-size: 0.8125rem;
   color: var(--text-muted);
   text-align: left;
+}
+
+/* Collapsible sections (collapse shortcode) */
+.collapse {
+  margin: 0 0 1.25rem;
+  max-width: var(--content-max);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.collapse__summary {
+  cursor: pointer;
+  padding: 0.8125rem 1rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--text);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  user-select: none;
+}
+
+.collapse__summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapse__summary::after {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.collapse[open] .collapse__summary::after {
+  transform: rotate(45deg);
+}
+
+.collapse__summary:hover {
+  color: var(--brand);
+}
+
+.collapse__body {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.collapse__body > :first-child {
+  margin-top: 0.875rem;
+}
+
+.collapse__body > :last-child {
+  margin-bottom: 0;
+}
+
+.collapse__body table {
+  font-size: 0.875rem;
+}
+
+.collapse__body p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
 }
 
 /* Callout notices */
@@ -723,9 +823,18 @@ a:hover {
     padding: 1.75rem 1.25rem 0;
   }
 
-  .workshop-hero__title,
-  .chapter-header__title {
-    font-size: 1.75rem;
+  .page-title {
+    font-size: var(--page-title-size-mobile);
+  }
+
+  .section-heading--h2,
+  .prose h2:not(.section-heading) {
+    font-size: var(--section-title-size-mobile);
+  }
+
+  .section-heading--h3,
+  .prose h3:not(.section-heading) {
+    font-size: var(--subsection-title-size-mobile);
   }
 
   .workshop-hero__description {

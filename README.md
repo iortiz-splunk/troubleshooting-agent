@@ -46,14 +46,14 @@ Same CLI everywhere — **`troubleshooting-agent`** — behavior depends on **wh
 ```bash
 cd part1_agent
 troubleshooting-agent doctor
-troubleshooting-agent chat "Why is Verification slow?"
+troubleshooting-agent chat "Why does payment have errors in the sre-agent-workshop environment?"
 troubleshooting-agent slack-listen
 
 cd ../part2_agent
-troubleshooting-agent chat "Investigate latency on Verification"
+troubleshooting-agent chat "Investigate latency on payment in the sre-agent-workshop environment"
 
 cd ../part3_agent
-troubleshooting-agent slack-listen
+troubleshooting-agent chat "Troubleshoot the Splunk Observability alert: payment service in sre-agent-workshop environment. DetectorId HNcv52_AwAA. Rule: SRE Agent - PaymentService High Error Rate. Find root cause of the high error rate and confirm whether it is resolved."
 ```
 
 From the repo root you can override with `--part part3_agent` (optional).

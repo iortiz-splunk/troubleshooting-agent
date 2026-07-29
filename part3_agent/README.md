@@ -38,7 +38,7 @@ START → identify → categorize → investigate → report → END
 
 ## Log index catalog
 
-The investigate node injects **`search-logs/indexes.md`** (YAML frontmatter + tables) so the agent searches the right index first — e.g. `splunk4rookies-workshop` instead of `main` on **o11y-workshop-amer**.
+The investigate node injects **`search-logs/indexes.md`** (YAML frontmatter + tables) so the agent searches the right index first — e.g. `k8s-apps` instead of `main` on **o11y-workshop-amer**.
 
 To refresh for a new tenant:
 

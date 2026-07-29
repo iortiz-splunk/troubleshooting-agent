@@ -1,9 +1,8 @@
-"""Splunk OpenTelemetry bootstrap and manual spans."""
+"""OpenTelemetry bootstrap (OTLP export to a local collector) and manual spans."""
 
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -13,45 +12,82 @@ from workshop_shared.config import Settings
 _logger = logging.getLogger("workshop_shared")
 _otel_initialized = False
 
+
+def _parse_resource_attributes(raw: str | None) -> dict[str, str]:
+    """Parse OTEL_RESOURCE_ATTRIBUTES (key=value,key=value)."""
+    if not raw:
+        return {}
+    attrs: dict[str, str] = {}
+    for part in raw.split(","):
+        piece = part.strip()
+        if not piece or "=" not in piece:
+            continue
+        key, value = piece.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if key:
+            attrs[key] = value
+    return attrs
+
+
+def _otlp_http_base(endpoint: str) -> str:
+    """Normalize collector base URL for OTLP/HTTP exporters."""
+    base = endpoint.strip().rstrip("/")
+    for suffix in ("/v1/traces", "/v1/metrics"):
+        if base.endswith(suffix):
+            return base[: -len(suffix)]
+    return base
+
+
 # ---------------------------------------------------------------------------
-# Splunk OTel bootstrap
-# Starts the Splunk distro once; sets env vars for direct ingest when configured.
+# OTel bootstrap
+# Exports traces and metrics to a local collector over OTLP/HTTP.
+# The collector handles routing to Splunk Observability Cloud or elsewhere.
 # ---------------------------------------------------------------------------
 def init_splunk_otel(settings: Settings) -> bool:
-    """Start Splunk OTel distro (idempotent). Returns True when active."""
+    """Start OTel export to the local collector (idempotent). Returns True when active."""
     global _otel_initialized
     if not settings.enable_splunk_otel or _otel_initialized:
         return _otel_initialized
 
-    os.environ.setdefault("OTEL_SERVICE_NAME", settings.otel_service_name)
-    if settings.splunk_access_token:
-        os.environ.setdefault("SPLUNK_ACCESS_TOKEN", settings.splunk_access_token)
-    if settings.splunk_o11y_realm:
-        os.environ.setdefault("SPLUNK_REALM", settings.splunk_o11y_realm)
-    # Splunk distro enables OTLP log export by default (localhost:4318). We only need APM traces.
-    os.environ.setdefault("OTEL_LOGS_EXPORTER", "none")
-
     try:
-        # splunk-opentelemetry 2.x (current)
-        from splunk_otel import init_splunk_otel as splunk_start
-
-        splunk_start()
+        from opentelemetry import metrics, trace
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.metrics import MeterProvider
+        from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
     except ImportError:
-        try:
-            # splunk-opentelemetry 1.x (legacy)
-            from splunk_opentelemetry import start as splunk_start_legacy
+        _logger.warning(
+            "ENABLE_SPLUNK_OTEL=true but OpenTelemetry packages are not installed. "
+            'Run: pip install "troubleshooting-agent[observability]"'
+        )
+        return False
 
-            splunk_start_legacy()
-        except ImportError:
-            _logger.warning(
-                "ENABLE_SPLUNK_OTEL=true but splunk-opentelemetry is not installed. "
-                'Run: pip install "troubleshooting-agent[observability]"'
-            )
-            return False
+    base = _otlp_http_base(settings.otel_collector_endpoint)
+    resource_attrs = {SERVICE_NAME: settings.otel_service_name}
+    resource_attrs.update(_parse_resource_attributes(settings.otel_resource_attributes))
+    resource = Resource.create(resource_attrs)
+
+    span_exporter = OTLPSpanExporter(endpoint=f"{base}/v1/traces")
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(BatchSpanProcessor(span_exporter))
+    trace.set_tracer_provider(tracer_provider)
+
+    metric_exporter = OTLPMetricExporter(endpoint=f"{base}/v1/metrics")
+    metric_reader = PeriodicExportingMetricReader(metric_exporter)
+    meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+    metrics.set_meter_provider(meter_provider)
 
     _init_httpx_instrumentation()
     _otel_initialized = True
-    _logger.info("Splunk OTel initialized service=%s", settings.otel_service_name)
+    _logger.info(
+        "OTel export initialized service=%s collector=%s",
+        settings.otel_service_name,
+        base,
+    )
     return True
 
 
@@ -78,7 +114,7 @@ def otel_active() -> bool:
 # ---------------------------------------------------------------------------
 @contextmanager
 def span(name: str, attributes: dict[str, Any] | None = None) -> Iterator[Any]:
-    """Manual span when Splunk OTel is active; no-op otherwise."""
+    """Manual span when OTel export is active; no-op otherwise."""
     if not _otel_initialized:
         yield None
         return

@@ -6,12 +6,15 @@ always_inject: true
 
 # Investigation report (Part 2)
 
-Apply this format for **every** final reply after tools have run. Tool JSON is for your analysis only — **do not** include raw MCP responses, `valueByTime` arrays, or full metric payloads in the user-facing answer.
+Apply this format for **every** final reply — but only **after** the active playbook's **required MCP tools** have all been called (see Active playbook tool sequence). If the playbook lists a metrics step after alert search, you must invoke that tool before writing this report.
+
+Tool JSON is for your analysis only — **do not** include raw MCP responses, `valueByTime` arrays, or full metric payloads in the user-facing answer.
 
 ## Required sections (use these headings)
 
 ### Alert / incident
-- Detector or rule name, severity, service, environment (from alert search).
+- Detector or rule name, severity, service, environment (from alert search when present).
+- If alert search returned empty, state **no active alerts** and cite latency/error **metrics** from the playbook's metric tool instead.
 
 ### Identifiers
 - `eventId`, `incidentId`, `detectorId` when present in tool results.

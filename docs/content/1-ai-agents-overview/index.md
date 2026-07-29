@@ -86,4 +86,4 @@ Structured traces (`AGENT_LOG_TRACE=true`) give immediate feedback in the termin
 
 ---
 
-**Next:** [AI Skills](/troubleshooting-agent/2-ai-skills/) — why playbooks matter, how to author `SKILL.md` files, and examples from this repo.
+**Next:** [AI Skills]({{< ref "2-ai-skills" >}}) — why playbooks matter, how to author `SKILL.md` files, and examples from this repo.

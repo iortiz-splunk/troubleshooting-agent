@@ -1,0 +1,27 @@
+{{- /*
+  AP-style title case for section headings.
+  Capitalize major words; keep small words lowercase unless first/last.
+  Usage: {{ partial "title-case.html" .Text }}
+*/ -}}
+{{- $text := replace . "_" " " -}}
+{{- $smallWords := dict
+  "a" true "an" true "the" true "to" true "in" true "on" true "at" true
+  "for" true "and" true "or" true "but" true "vs" true "with" true "from" true
+  "by" true "of" true "as" true "into" true "through" true "via" true "per" true
+-}}
+{{- $words := split $text " " -}}
+{{- $lastIndex := sub (len $words) 1 -}}
+{{- $out := slice -}}
+{{- range $i, $word := $words -}}
+  {{- if eq $word "" -}}{{- continue -}}{{- end -}}
+  {{- $lower := lower $word -}}
+  {{- $isSmall := index $smallWords $lower -}}
+  {{- if and $isSmall (gt $i 0) (lt $i $lastIndex) -}}
+    {{- $out = $out | append $lower -}}
+  {{- else -}}
+    {{- $first := substr $word 0 1 | upper -}}
+    {{- $rest := substr $word 1 -}}
+    {{- $out = $out | append (printf "%s%s" $first $rest) -}}
+  {{- end -}}
+{{- end -}}
+{{- delimit $out " " -}}
