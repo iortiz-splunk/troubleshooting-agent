@@ -163,11 +163,16 @@ def _log_search_hints(
     lines = [
         "\n\nSplunk log search (REQUIRED before concluding when splunk_* MCP tools are available):",
         "- Run search-logs playbook: use log index catalog first → splunk_run_query with scoped SPL.",
+        "- splunk_run_query args are FLAT (not params): query=<SPL>, earliest_time=-1h, latest_time=now, row_limit=50",
+        "- Splunk time: use relative earliest_time/latest_time (-1h, -40m, now). Do NOT paste ISO timestamps into SPL earliest=/latest=.",
+        "- Call splunk_run_query at most twice (narrow SPL, then widen). Do not repeat empty or failed calls.",
         f"- service filter: {mcp_params['service_name'] or '(from alert sf_service)'}",
         f"- environment filter: {mcp_params['environment_name'] or '(from alert sf_environment)'}",
     ]
     if alert_time:
-        lines.append(f"- alert time (center SPL window): {alert_time}")
+        lines.append(
+            f"- alert fired at {alert_time} (context only — use earliest_time=-1h latest_time=now for log search, not ISO in SPL)"
+        )
     if k8s_parts:
         lines.append(f"- infra tags: {', '.join(k8s_parts)}")
     if catalog_hint:
@@ -200,6 +205,8 @@ def _investigate_user_content(
             f"- params.service_name: {mcp_params['service_name'] or '(unknown)'}\n"
             f"- params.environment_name: {mcp_params['environment_name'] or '(unknown)'}\n"
             f"- {exemplar_hint}\n"
+            "Call each o11y_get_apm_* tool at most once unless the first call failed validation.\n"
+            "Do not re-fetch the same metric with a slightly narrower time window.\n"
             "If a tool returns a validation error, fix the param and retry once; "
             "then continue with other tools and summarize."
         )

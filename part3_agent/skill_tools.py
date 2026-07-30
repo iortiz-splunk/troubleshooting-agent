@@ -128,6 +128,25 @@ def load_log_index_catalog(*, catalog_path: Path | None = None) -> dict[str, Any
     return _parse_yaml_frontmatter(path)
 
 
+def resolve_kube_container_name(service_name: str, catalog: dict[str, Any] | None = None) -> str:
+    """Map an APM service name to the kube:container sourcetype suffix for this tenant."""
+    svc = service_name.strip()
+    if not svc:
+        return ""
+
+    aliases = catalog.get("service_aliases") if catalog else None
+    if isinstance(aliases, dict):
+        svc_lower = svc.lower()
+        for alias, container in aliases.items():
+            if str(alias).lower() == svc_lower:
+                return str(container).lower()
+
+    container = svc.lower().replace("_", "-")
+    if container.endswith("service") and len(container) > len("service"):
+        return container[: -len("service")]
+    return container
+
+
 def format_log_index_catalog_for_product(
     product_type: str | None,
     *,
@@ -170,11 +189,11 @@ def format_log_index_catalog_for_product(
                 lines.append(f"- {text}")
 
     if service_name.strip() and key == "apm":
-        svc = service_name.strip()
-        container = svc.lower().replace("_", "-")
+        container = resolve_kube_container_name(service_name, cat)
         lines.append(
-            f"- try sourcetype=\"kube:container:{container}\" first; "
-            "if zero rows, search httpevent/json _raw for the service name or trace_id"
+            f"- try sourcetype=\"kube:container:{container}\" first "
+            f"(APM name {service_name.strip()!r} → container {container!r}); "
+            "if zero rows, search httpevent _raw for the service name or trace_id"
         )
 
     example_spl = product.get("example_spl")
