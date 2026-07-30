@@ -1,8 +1,23 @@
 ---
 tenant: o11y-workshop-amer
 gateway_region: region-pdx10
-discovered_at: "2026-07-17"
+discovered_at: "2026-07-29"
 default_index: k8s-apps
+service_aliases:
+  payment: payment
+  paymentservice: payment
+  cart: cart
+  cartservice: cart
+  ad: ad
+  adservice: ad
+  email: email
+  emailservice: email
+  currency: currency
+  currencyservice: currency
+  recommendation: recommendation
+  recommendationservice: recommendation
+  productcatalogservice: product-catalog
+  product-catalog: product-catalog
 do_not_use:
   - index: _internal
     reason: Splunk platform logs (splunkd, mongod, mcp_server) — not application data
@@ -18,29 +33,31 @@ products:
     sourcetypes:
       - httpevent
       - "kube:container:*"
-      - json
     notes:
-      - "Map sf_service to sourcetype kube:container:<lowercase-hyphenated> when it exists (e.g. paymentservice, checkoutservice, frontend)."
-      - "Many APM service names (e.g. Verification) do not have a matching kube:container sourcetype — search httpevent _raw and json message/trace_id instead."
-      - "sf_environment (e.g. Brian-E-AD-Capital) may not appear in log fields; prefer pod/namespace/workload tags from APM traces."
-      - "Structured kube logs use JSON in _raw: http.resp.status, http.resp.took_ms, severity, message, trace_id."
+      - "Container sourcetypes use short K8s container names (payment, cart, ad) — NOT *service suffix (paymentservice returns zero rows)."
+      - "Map sf_service via service_aliases in this catalog, or strip trailing 'service' (paymentservice → payment)."
+      - "Many APM service names (e.g. Verification) have no kube:container match — search httpevent _raw or trace_id from exemplars."
+      - "splunk_run_query returns JSON {results, total_rows}; zero rows is ~47 bytes, not an error."
     common_kube_containers:
       - frontend
-      - paymentservice
       - payment
-      - checkoutservice
-      - cartservice
-      - shippingservice
-      - recommendationservice
-      - adservice
-      - emailservice
-      - travel-planner-langchain
+      - cart
+      - ad
+      - email
+      - currency
+      - recommendation
       - fraud-detection
+      - product-catalog
       - product-reviews
+      - accounting
+      - kafka
+      - llm
+      - quote
+      - traefik
     example_spl: |
       index=k8s-apps earliest=-1h latest=now
-      (sourcetype="kube:container:paymentservice" OR sourcetype=httpevent)
-      (severity=error OR http.resp.status>=400 OR _raw="*error*")
+      (sourcetype="kube:container:payment" OR sourcetype=httpevent)
+      (severity=error OR http.resp.status>=400 OR _raw="*error*" OR _raw="*Invalid token*")
       | head 50
   im:
     primary_index: k8s-apps
@@ -64,7 +81,6 @@ products:
     sourcetypes:
       - httpevent
       - "kube:container:frontend"
-      - "kube:container:rum-loadgen"
       - json
     notes:
       - "Backend API logs for RUM sessions often appear in httpevent or kube:container:frontend."
@@ -81,7 +97,6 @@ products:
     sourcetypes:
       - httpevent
       - "kube:container:*"
-      - json
     notes:
       - "Search target path/host and 5xx during the check failure window."
       - "httpevent _raw includes Envoy-style access lines with status codes."
@@ -93,7 +108,7 @@ products:
 
 # Log index catalog — o11y-workshop-amer
 
-Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_indexes`, `splunk_run_query`). The investigate agent reads this **before** probing the cluster.
+Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_indexes`, `splunk_get_metadata`, `splunk_run_query`). The investigate agent reads this **before** probing the cluster.
 
 ## Default
 
@@ -101,7 +116,7 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 |---------|-------|
 | **Default index** | `k8s-apps` |
 | **Tenant** | `o11y-workshop-amer` |
-| **Last verified** | 2026-07-17 |
+| **Last verified** | 2026-07-29 (Splunk Cloud MCP live probe) |
 
 ## Do not use for app troubleshooting
 
@@ -109,14 +124,37 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 |-------|-----|
 | `_internal` | Splunk platform (`splunkd`, `mongod`, `mcp_server`) |
 | `_introspection` | Splunk introspection only |
-| `main` | Disabled; no application events in last 7d |
+| `main` | Disabled; no application events |
 
 ## Index summary (24h event volume)
 
 | Index | Role | Top sourcetypes |
 |-------|------|-----------------|
-| `k8s-apps` | **Primary** — Hipster Shop / workshop K8s + HTTP | `kube:container:*`, `httpevent`, `kube:events` |
+| `k8s-apps` | **Primary** — Hipster Shop / workshop K8s + HTTP | `httpevent` (~612k), `kube:container:*` |
 | `splunk-arcade` | Arcade demo app | `json`, `arcade:app:logs`, `otel` |
+
+## MCP tool shapes (Splunk Cloud)
+
+**`splunk_run_query`** — flat args (not `params`):
+
+```json
+{
+  "query": "index=k8s-apps sourcetype=\"kube:container:payment\" _raw=\"*error*\" | head 20",
+  "earliest_time": "-1h",
+  "latest_time": "now",
+  "row_limit": 50
+}
+```
+
+**Time:** use relative `earliest_time`/`latest_time` on the tool call (`-1h`, `-40m`, `now`). **Never** put O11y ISO timestamps (`2026-07-30T14:17:20.000Z`) in SPL `earliest=`/`latest=` — Splunk rejects them.
+
+**Response:** `{"results": [{ "_raw", "_time", "sourcetype", "source", "host", "index", ... }], "total_rows": N, "truncated": false}`. Zero hits: `{"results":[],"total_rows":0}` (~47 bytes) — widen sourcetype or search `httpevent`, do not retry the same SPL.
+
+**`splunk_get_metadata`** — list sourcetypes when catalog is stale:
+
+```json
+{"type": "sourcetypes", "index": "k8s-apps", "earliest_time": "-24h", "latest_time": "now", "row_limit": 100}
+```
 
 ## Product → index / sourcetype
 
@@ -124,12 +162,23 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 
 | Index | Sourcetypes | Notes |
 |-------|-------------|-------|
-| `k8s-apps` | `httpevent`, `kube:container:*`, `json` | Start here for latency/error alerts |
+| `k8s-apps` | `httpevent`, `kube:container:*` | Start here for latency/error alerts |
 | `splunk-arcade` | `json`, `otel` | Only when alert service matches arcade apps |
 
-**Service mapping:** try `sourcetype="kube:container:<lowercase(sf_service)>"` first. If zero rows, search `httpevent` / `json` with `_raw="*<service>*"` or `trace_id` from APM exemplar traces.
+**Service mapping:** APM `sf_service` often differs from container sourcetype. Use `service_aliases` in frontmatter or strip trailing `service`:
 
-**Common `kube:container:` sourcetypes (7d):** `frontend`, `currencyservice`, `paymentservice`, `cartservice`, `checkoutservice`, `shippingservice`, `payment`, `adservice`, `recommendationservice`, `travel-planner-langchain`, `fraud-detection`, `product-reviews`, `accounting`, `emailservice`, `kafka`, `redis`.
+| APM / alert name | Use sourcetype |
+|------------------|----------------|
+| `payment`, `paymentservice` | `kube:container:payment` |
+| `cart`, `cartservice` | `kube:container:cart` |
+| `adservice`, `ad` | `kube:container:ad` |
+| `emailservice`, `email` | `kube:container:email` |
+| `currencyservice`, `currency` | `kube:container:currency` |
+| `recommendationservice` | `kube:container:recommendation` |
+
+If zero rows on container sourcetype, search **`httpevent`** with `_raw="*<service>*"` (e.g. `Payment request failed. Invalid token`).
+
+**Live `kube:container:` sourcetypes (24h):** `frontend`, `payment`, `cart`, `ad`, `email`, `currency`, `recommendation`, `fraud-detection`, `product-catalog`, `product-reviews`, `accounting`, `kafka`, `llm`, `quote`, `traefik`, `postgresql`, `valkey-cart`, `registry`, `coredns`.
 
 ### IM (Infrastructure Monitoring)
 
@@ -141,7 +190,7 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 
 | Index | Sourcetypes | Notes |
 |-------|-------------|-------|
-| `k8s-apps` | `httpevent`, `kube:container:frontend`, `kube:container:rum-loadgen` | Backend correlated with RUM sessions |
+| `k8s-apps` | `httpevent`, `kube:container:frontend` | Backend correlated with RUM sessions |
 | `splunk-arcade` | `json` | `deployment.environment`, `service.name`, `trace_id` in JSON |
 
 ### Synthetics
@@ -154,18 +203,17 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 
 | Sourcetype | Useful fields |
 |------------|---------------|
-| `kube:container:*` | JSON in `_raw`: `message`, `severity`, `http.resp.status`, `http.resp.took_ms`, `http.req.path`, `trace_id`, `timestamp` |
-| `httpevent` | Envoy access lines in `_raw`; app text messages (`User accessing index page`, checkout messages) |
-| `json` (arcade) | `service.name`, `deployment.environment`, `level`, `message`, `trace_id`, `event` |
+| `kube:container:payment` | `_raw` stack traces and messages (`Payment request failed. Invalid token`); `source` pod path `/var/log/pods/default_payment-.../payment/0.log` |
+| `httpevent` | Plain-text app messages in `_raw` (`payment went through`, error strings); `source=kubernetes` |
 | `kube:events` | `_raw` pod/event text (`Back-off restarting failed container ...`) |
 
 ## Refreshing this catalog
 
 From a facilitator machine with AMER Splunk MCP connected:
 
-1. `splunk_get_indexes` — confirm enabled indexes and defaults.
-2. `index=<name> earliest=-24h | stats count by sourcetype | sort - count` — volume by sourcetype.
-3. Sample events: `| head 3` per sourcetype to capture field names.
-4. Update YAML frontmatter and tables; run `pytest tests/part3/test_skill_tools.py`.
+1. `splunk_get_metadata` with `type=sourcetypes`, `index=k8s-apps`, `earliest_time=-24h`.
+2. `splunk_run_query`: `index=k8s-apps earliest=-1h | stats count by sourcetype | sort - count`.
+3. Probe APM service names: `sourcetype="kube:container:<name>"` vs `httpevent _raw="*<name>*"`.
+4. Update YAML frontmatter (`service_aliases`, `common_kube_containers`) and tables; run `pytest tests/part3/test_skill_tools.py`.
 
 See [indexes.example.md](indexes.example.md) for a tenant-agnostic template.

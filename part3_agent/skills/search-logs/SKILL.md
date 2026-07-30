@@ -29,6 +29,25 @@ If no Splunk platform MCP tools are bound (only `o11y_*`), skip this step and no
 | **`saia_generate_spl`** | Optional — natural language → SPL when you need help; **always review and tighten** filters before running. |
 | **`saia_optimize_spl`** | Optional — improve a draft SPL for performance. |
 
+### `splunk_run_query` invocation (important)
+
+**Do not** use a `params` object (that shape is for `o11y_*` tools only). Pass **flat** arguments:
+
+```json
+{
+  "query": "index=k8s-apps sourcetype=\"kube:container:payment\" (severity=error OR _raw=\"*error*\") | head 50",
+  "earliest_time": "-1h",
+  "latest_time": "now",
+  "row_limit": 50
+}
+```
+
+Put the **time window in tool args** (`earliest_time`, `latest_time`), not ISO timestamps in the SPL string. See **Time windows** below.
+
+**Response shape:** JSON with `results` (array of events), `total_rows`, and `truncated`. Each event includes `_raw`, `_time`, `sourcetype`, `source`, `host`, `index`. **Zero rows** returns `{"results":[],"total_rows":0}` — widen sourcetype or try `httpevent`, do not treat as a tool error.
+
+**Efficiency:** call `splunk_run_query` at most **twice** per investigation (narrow SPL, then one widened retry). If both return zero rows, stop and document the gap — **do not** repeat the same SPL or call with empty `{}` / `params: {}`.
+
 **Guardrails:** `splunk_run_query` is for **non-destructive** searches only; keep runtime under ~1 minute; prefer **`head`** / **`stats`** over raw export.
 
 ---
@@ -48,16 +67,48 @@ If no Splunk platform MCP tools are bound (only `o11y_*`), skip this step and no
 
 Use identifiers already parsed from the alert or APM trace tags. **Never** run unbounded `index=*` without a tight **`earliest`/`latest`** window.
 
-### 1. Time window (always first)
+### 1. Time window (always first — read carefully)
 
-- Prefer the alert **`anomaly_state_update_iso_8601_date_time`** (or Slack investigation window) as the center.
-- Default SPL bounds: **`earliest=-30m latest=+5m`** relative to alert time, or **`earliest=-1h latest=now`** when only relative time is known.
+**O11y and Splunk use different time formats.** Do not copy ISO timestamps from O11y alerts into Splunk SPL.
+
+| Source | Valid format | Example |
+|--------|--------------|---------|
+| **O11y MCP** (`params.time_range`) | ISO 8601 OK | `{"start": "2026-07-30T14:17:20Z", "stop": "now"}` |
+| **Splunk MCP tool args** | Relative or `now` | `"earliest_time": "-1h"`, `"latest_time": "now"` |
+| **Splunk SPL `earliest=`/`latest=`** | Relative or `now` only | `earliest=-1h latest=now` |
+
+**Invalid in Splunk SPL (returns 0 rows or validation error):**
+
+```spl
+earliest=2026-07-30T14:17:20.000Z latest=2026-07-30T14:57:20.000Z
+```
+
+**Recommended pattern (preferred):** omit `earliest`/`latest` from the SPL string; set time only on the tool call:
+
+```json
+{
+  "query": "index=k8s-apps sourcetype=\"kube:container:payment\" _raw=\"*error*\" | head 50",
+  "earliest_time": "-1h",
+  "latest_time": "now",
+  "row_limit": 50
+}
+```
+
+**Alternative:** use the **same relative** bounds in both SPL and tool args:
+
+```spl
+index=k8s-apps earliest=-1h latest=now sourcetype="kube:container:payment" | head 50
+```
+
+**Alert timestamp handling:** use `anomaly_state_update_iso_8601_date_time` for **context in your summary only**. For log search, pick a relative window that covers the incident, e.g. `-1h`/`now` or `-40m`/`now` for a recent alert — **never paste the ISO string into SPL or `earliest_time`/`latest_time`**.
+
+**Valid Splunk relative modifiers:** `-15m`, `-30m`, `-1h`, `-4h`, `-24h`, `-7d`, `now`.
 
 ### 2. Scope filters (pick what you have)
 
 | Source | SPL filter examples |
 |--------|---------------------|
-| **APM service** (`sf_service`) | `sourcetype="kube:container:<lowercase-service>"` OR `_raw="*Verification*"` in `httpevent` / `json` |
+| **APM service** (`sf_service`) | Map via catalog `service_aliases` (e.g. `paymentservice` → `kube:container:payment`). If zero rows, `httpevent` with `_raw="*<service>*"` or `trace_id` from exemplars |
 | **Environment** (`sf_environment`) | May be absent in logs — prefer pod/namespace from APM trace tags |
 | **K8s from alert/trace** | `k8s.namespace.name="..."`, `k8s.pod.name="..."`, search `_raw="*pod-name*"` in `kube:events` |
 | **Trace correlation** | `trace_id="<from o11y_get_apm_exemplar_traces>"` in `kube:container:*` or `json` |
@@ -67,33 +118,35 @@ Combine with **`AND`**; start **narrow** (index + sourcetype + time), then widen
 
 ### 3. Example SPL patterns (o11y-workshop-amer — adapt from catalog)
 
-**APM service errors (catalog index):**
+**APM service errors (payment — time via tool args `-1h`/`now`):**
 ```spl
-index=k8s-apps earliest=-1h latest=now
-(sourcetype="kube:container:paymentservice" OR sourcetype=httpevent)
-(severity=error OR http.resp.status>=400 OR _raw="*error*")
+index=k8s-apps
+(sourcetype="kube:container:payment" OR sourcetype=httpevent)
+(severity=error OR http.resp.status>=400 OR _raw="*error*" OR _raw="*Invalid token*")
+| head 50
+```
+
+**Widen when container sourcetype returns zero rows:**
+```spl
+index=k8s-apps
+(sourcetype=httpevent OR sourcetype="kube:container:*")
+_raw="*payment*"
 | head 50
 ```
 
 **Trace ID from exemplar:**
 ```spl
-index=k8s-apps earliest=-1h latest=now
-trace_id="<trace_id_from_apm>"
-| head 50
+index=k8s-apps trace_id="<trace_id_from_apm>" | head 50
 ```
 
 **K8s pod restart (IM):**
 ```spl
-index=k8s-apps earliest=-1h latest=now
-sourcetype=kube:events _raw="*<pod-name>*"
-| head 50
+index=k8s-apps sourcetype=kube:events _raw="*<pod-name>*" | head 50
 ```
 
 **Quick volume check:**
 ```spl
-index=k8s-apps earliest=-1h latest=now
-sourcetype=httpevent
-| stats count by sourcetype
+index=k8s-apps sourcetype=httpevent | stats count by sourcetype
 ```
 
 ---

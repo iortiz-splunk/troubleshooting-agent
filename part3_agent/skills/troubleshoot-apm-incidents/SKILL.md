@@ -26,22 +26,26 @@ All APM tools take a nested ``params`` object. Always include:
 
 Do **not** use `latency`, `lat_buck`, `lat_buck_99`, or other invented values. If exemplar traces fail after one retry with the correct literal, continue with latency/error breakdown tools and summarize without exemplars.  
 
-## Recommended Workflow  
-- **o11y_get_apm_services**: Aggregate request count, error count, latency (e.g. P50/P90/P99), health for the service and environment.  
-- **o11y_get_apm_service_latency**: Latency by endpoint, workflow, or other dimensions to spot slow operations or tail latency.  
-- **o11y_get_apm_service_errors_and_requests**: Breakdown by tag (endpoint, http status, workflow, etc.) to see what changed or dominates (e.g. 200 vs 4xx, by operation). Also check for **infrastructure-related tags** (host.name, k8s.pod.name, k8s.namespace.name, etc.)—if non-null, they support correlation; if all null, infrastructure identity may be available only from full trace process tags.  
-- **o11y_get_apm_exemplar_traces**: Sample traces. Set `params.exemplar_type` to `req`, `err`, `rc_err`, or `lat_buck_` (latency alerts). Use trace IDs with **o11y_get_apm_trace_tool**.  
-- **o11y_get_apm_trace_tool**: Full trace by trace_id. Use to inspect a specific request and to read **process** (resource) tags for the incident service—host, K8s (pod, node, namespace, deployment), container, deployment.environment—for infrastructure correlation and for filtering infrastructure metrics in SignalFlow when service/environment filters return no data.  
-- **Infrastructure metrics**: **o11y_get_metric_names** to discover metric names (e.g. by service name, “request”, “redis”, "CPU Utilization') to identify relevant metrics for troubleshooting.  
-- **o11y_execute_signalflow_program**: Run SignalFlow to get the metrics identified in the previous step, or any metric time series. Prefer **o11y_generate_signalflow_program** when the agent needs a program that filters by service/environment or by infra dimensions from a trace.  
+## Recommended Workflow (call each tool at most once)
+
+Use one shared **params.time_range** (e.g. `{"start": "-1h", "stop": "now"}`) for all steps below. **Do not** re-call the same tool with a narrower window unless the first call failed validation.
+
+1. **o11y_get_apm_service_errors_and_requests** — error/request breakdown (primary for error-rate alerts).
+2. **o11y_get_apm_service_latency** — only if latency context is needed (latency alerts or high P99 in step 1).
+3. **o11y_get_apm_exemplar_traces** — `exemplar_type`: `err` or `rc_err` for error alerts; `lat_buck_` for latency alerts.
+4. **o11y_get_apm_trace_tool** — optional, only if you have a trace_id from step 3 worth inspecting.
+5. Skip **o11y_get_apm_services** unless steps 1–3 lack service health summary.
+
+Do **not** call **o11y_get_apm_service_errors_and_requests** again with `-30m` after already fetching `-1h` unless the first call errored.
 
 ## Log search (required before concluding)
 
 After APM metrics/traces, apply **search-logs** using **Splunk platform MCP** (`splunk_*` tools — not `o11y_*`):
 
-1. Build SPL from **`sf_service`**, **`sf_environment`**, alert time, and any **K8s/host/trace** tags from **o11y_get_apm_trace_tool**.
-2. Run at least one **`splunk_run_query`** (use **`splunk_get_indexes`** / **`splunk_get_metadata`** first if the index is unknown).
-3. Summarize log patterns (errors, timeouts, stack traces) or state **no matching logs** with the filters tried.
+1. Read the **log index catalog** in your prompt (`indexes.md`) for `default_index`, `service_aliases`, and example SPL.
+2. Build SPL from **`sf_service`** (mapped to container sourcetype), alert time, and **trace_id** / K8s tags from APM tools.
+3. Run **`splunk_run_query`** once with narrow SPL; widen once if `total_rows` is 0 (try `httpevent`).
+4. Only if catalog queries return zero rows: **`splunk_get_metadata`** (`type=sourcetypes`) — avoid **`splunk_get_indexes`** unless index is unknown.
 
 **Do not** finish the investigation without this step when Splunk MCP tools are available.
 

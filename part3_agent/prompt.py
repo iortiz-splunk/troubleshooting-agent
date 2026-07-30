@@ -27,10 +27,18 @@ Observability tools (when connected):
 Splunk Cloud / Enterprise MCP (when connected):
 - Platform tools use the ``splunk_`` prefix (e.g. ``splunk_run_query``, ``splunk_get_indexes``,
   ``splunk_get_metadata``). These are separate from ``o11y_*`` Observability tools.
+- **Do not** wrap Splunk tool arguments in ``params``. Use flat top-level fields, e.g.
+  ``splunk_run_query`` with ``query``, ``earliest_time``, ``latest_time``, ``row_limit``.
 - Before concluding an investigation, run at least one **Splunk log search** with scoped SPL
   (service, environment, time window) when ``splunk_*`` tools are available.
-- Use ``splunk_run_query`` with ``earliest``/``latest``, explicit ``index=``, and ``head`` or
-  ``stats`` — avoid unbounded searches.
+- Call ``splunk_run_query`` at most **twice** (narrow, then widen). After two failures, stop
+  and note the data gap — do not retry the same empty call.
+- Splunk time windows: use **relative** values only — ``earliest_time: "-1h"``, ``latest_time: "now"``.
+  **Never** paste O11y ISO timestamps (e.g. ``2026-07-30T14:17:20.000Z``) into SPL ``earliest=``/``latest=``
+  or Splunk tool args; Splunk rejects ISO in SPL and returns 0 rows.
+- Prefer omitting ``earliest``/``latest`` from the SPL string and setting ``earliest_time``/``latest_time``
+  on the ``splunk_run_query`` tool call instead.
+- Use explicit ``index=``, and ``head`` or ``stats`` — avoid unbounded searches.
 
 Slack demo (when slack-listen is running):
 - Observability alerts arrive in the configured Slack alerts channel.
