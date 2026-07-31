@@ -99,8 +99,37 @@ def _coerce_o11y_params(params: dict[str, Any]) -> dict[str, Any]:
     return coerced
 
 
+def _schema_properties(schema: dict[str, Any] | None) -> dict[str, Any]:
+    if not schema or schema.get("type") != "object":
+        return {}
+    properties = schema.get("properties", {})
+    return properties if isinstance(properties, dict) else {}
+
+
+def _uses_o11y_params_wrapper(schema: dict[str, Any] | None) -> bool:
+    """True for O11y MCP tools that require a top-level params object."""
+    return "params" in _schema_properties(schema)
+
+
+def _unwrap_flat_splunk_args(kwargs: dict[str, Any]) -> dict[str, Any]:
+    """
+    Splunk MCP tools use flat args (query, earliest_time, …), not params.
+
+    Models trained on o11y_* often send {"params": {...}} or {"params": {}}.
+    """
+    if not kwargs:
+        return {}
+    if "params" in kwargs and isinstance(kwargs["params"], dict):
+        inner = kwargs["params"]
+        if inner and any(key in inner for key in ("query", "search", "spl")):
+            return {k: v for k, v in inner.items() if v is not None}
+        if len(kwargs) == 1 and not inner:
+            return {}
+    return {k: v for k, v in kwargs.items() if v is not None}
+
+
 def _finalize_mcp_arguments(kwargs: dict[str, Any]) -> dict[str, Any]:
-    """Always wrap params and coerce O11y-specific argument shapes."""
+    """Wrap flat kwargs in params and coerce O11y-specific argument shapes."""
     if not kwargs:
         return {"params": {}}
     if "params" in kwargs and isinstance(kwargs["params"], dict):
@@ -118,30 +147,55 @@ def normalize_mcp_arguments(
     return _normalize_mcp_arguments(schema, kwargs)
 
 
+def _looks_like_o11y_kwargs(kwargs: dict[str, Any]) -> bool:
+    """Heuristic when MCP inputSchema is missing (alert_resolve, repairs)."""
+    if "params" in kwargs and isinstance(kwargs["params"], dict):
+        inner = kwargs["params"]
+        return any(
+            key in inner
+            for key in (
+                "service_name",
+                "environment_name",
+                "time_range",
+                "detector_id",
+                "keywords",
+                "limit",
+            )
+        )
+    return any(
+        key in kwargs
+        for key in (
+            "service_name",
+            "environment_name",
+            "time_range",
+            "detector_id",
+            "keywords",
+            "limit",
+        )
+    )
+
+
 def _normalize_mcp_arguments(
     schema: dict[str, Any] | None,
     kwargs: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    MCP o11y tools require a top-level ``params`` object.
+    Normalize LangChain tool kwargs before MCP invocation.
 
-    Models often send flat kwargs or ``{}``; wrap when needed.
+    - O11y tools (schema has ``params``): wrap flat kwargs in ``params``.
+    - Splunk platform tools (flat ``query``, etc.): pass through; unwrap mistaken ``params``.
     """
-    if not schema or schema.get("type") != "object":
+    if _uses_o11y_params_wrapper(schema):
+        if not kwargs:
+            return {"params": {}}
+        if "params" in kwargs:
+            return _finalize_mcp_arguments(kwargs)
         return _finalize_mcp_arguments(kwargs)
 
-    properties = schema.get("properties", {})
-    if "params" not in properties:
+    if not schema and _looks_like_o11y_kwargs(kwargs):
         return _finalize_mcp_arguments(kwargs)
 
-    if "params" in kwargs:
-        return _finalize_mcp_arguments(kwargs)
-
-    # Empty tool call -> {"params": {}}
-    if not kwargs:
-        return {"params": {}}
-
-    return _finalize_mcp_arguments(kwargs)
+    return _unwrap_flat_splunk_args(kwargs)
 
 
 # ---------------------------------------------------------------------------

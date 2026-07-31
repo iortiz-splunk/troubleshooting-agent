@@ -11,10 +11,19 @@ from mcp_load_runner.diagnostics import configure_load_test_logging
 from mcp_load_runner.metrics import (
     RunProgress,
     RunSummary,
+    exemplar_trace_failure_summary,
     records_to_csv,
     slowest_tool_by_p95,
+    splunk_zero_row_summary,
     suggest_next_participants,
     summary_to_json,
+)
+from mcp_load_runner.scenarios import (
+    DEFAULT_APM_SERVICE_NAME,
+    DEFAULT_ENVIRONMENT_NAME,
+    DEFAULT_EXEMPLAR_TYPE,
+    DEFAULT_SPLUNK_LOG_SERVICE,
+    VALID_EXEMPLAR_TYPES,
 )
 from mcp_load_runner.preflight import run_preflight
 from mcp_load_runner.runner import (
@@ -128,20 +137,38 @@ def main() -> None:
         use_o11y = st.checkbox(
             "Splunk O11y Cloud (APM)",
             value=True,
-            help="Steps 1–5: alerts, APM services, latency, errors, exemplar traces.",
+            help="Alerts, APM services, latency, and errors. Exemplar traces are optional.",
         )
         use_cloud = st.checkbox(
             "Splunk Cloud (logs)",
             value=False,
-            help="Step 6: splunk_run_query against workshop log index.",
+            help="splunk_run_query against workshop log index.",
         )
+        include_exemplar_traces = st.checkbox(
+            "Include exemplar traces",
+            value=False,
+            help=(
+                "Adds o11y_get_apm_exemplar_traces (SignalFx GraphQL). Often returns 503 under "
+                "concurrent load — leave off for capacity tests; enable for 1-participant smoke tests."
+            ),
+            disabled=not use_o11y,
+        )
+        exemplar_type = DEFAULT_EXEMPLAR_TYPE
+        if include_exemplar_traces and use_o11y:
+            exemplar_type = st.selectbox(
+                "Exemplar type",
+                options=list(VALID_EXEMPLAR_TYPES),
+                index=list(VALID_EXEMPLAR_TYPES).index(DEFAULT_EXEMPLAR_TYPE),
+                help="err for error alerts; lat_buck_ for latency alerts (trailing underscore).",
+            )
         server_selection: McpServerSelection | None = None
         if not use_o11y and not use_cloud:
             st.error("Select at least one MCP server.")
         else:
             server_selection = McpServerSelection(use_o11y=use_o11y, use_cloud=use_cloud)
             st.caption(
-                f"Scenario: {len(required_tool_names(server_selection))} tool call(s) per participant."
+                f"Scenario: {len(required_tool_names(server_selection, include_exemplar_traces=include_exemplar_traces))} "
+                "tool call(s) per participant."
             )
 
         participants = st.slider(
@@ -159,8 +186,20 @@ def main() -> None:
             value=0,
             help="0 = all participants start at once. Use 60–120s for large EC2 runs.",
         )
-        service_name = st.text_input("APM service name", value="Verification")
-        environment_name = st.text_input("APM environment", value="Brian-E-AD-Capital")
+        service_name = st.text_input(
+            "APM service name (O11y)",
+            value=DEFAULT_APM_SERVICE_NAME,
+            help="Service name passed to o11y_* MCP tools (alerts, latency, exemplar traces).",
+        )
+        splunk_log_service = st.text_input(
+            "Splunk log search term",
+            value=DEFAULT_SPLUNK_LOG_SERVICE,
+            help="Token for Splunk _raw search only (splunk_run_query step).",
+        )
+        environment_name = st.text_input(
+            "APM environment",
+            value=DEFAULT_ENVIRONMENT_NAME,
+        )
         call_timeout = st.number_input(
             "Per-call timeout (seconds)",
             min_value=10,
@@ -182,19 +221,26 @@ def main() -> None:
                     run_preflight(
                         settings,
                         server_selection=server_selection,
-                        required_tools=required_tool_names(server_selection),
+                        required_tools=required_tool_names(
+                            server_selection,
+                            include_exemplar_traces=include_exemplar_traces,
+                        ),
                         env_file=str(_ENV_FILE) if _ENV_FILE.is_file() else None,
                     )
                 )
             st.session_state["preflight"] = preflight
             st.session_state["preflight_logs"] = list(log_handler.lines)
             st.session_state["preflight_server_selection"] = server_selection
+            st.session_state["preflight_include_exemplar"] = include_exemplar_traces
 
     preflight = st.session_state.get("preflight")
     preflight_selection = st.session_state.get("preflight_server_selection")
+    preflight_include_exemplar = st.session_state.get("preflight_include_exemplar")
     st.subheader("Confirm MCP Servers Are Ready")
     if server_selection is not None and preflight_selection != server_selection:
         st.warning("MCP server selection changed — re-run preflight before starting a load test.")
+    if preflight is not None and preflight_include_exemplar != include_exemplar_traces:
+        st.warning("Exemplar trace setting changed — re-run preflight before starting a load test.")
     if preflight is None:
         st.info("Run **MCP preflight** in the sidebar before starting a load test.")
     else:
@@ -234,6 +280,7 @@ def main() -> None:
         and preflight.ok
         and server_selection is not None
         and preflight_selection == server_selection
+        and preflight_include_exemplar == include_exemplar_traces
     )
     run_disabled = not preflight_ok or server_selection is None
 
@@ -244,9 +291,12 @@ def main() -> None:
         participants=participants,
         ramp_up_seconds=float(ramp_up),
         service_name=service_name.strip(),
+        splunk_log_service=splunk_log_service.strip(),
         environment_name=environment_name.strip(),
         call_timeout_seconds=float(call_timeout),
         stop_on_first_error=stop_on_first_error,
+        include_exemplar_traces=include_exemplar_traces,
+        exemplar_type=str(exemplar_type),
         server_selection=server_selection or McpServerSelection(),
     )
 
@@ -257,9 +307,12 @@ def main() -> None:
                 participants=1,
                 ramp_up_seconds=0.0,
                 service_name=service_name.strip(),
+                splunk_log_service=splunk_log_service.strip(),
                 environment_name=environment_name.strip(),
                 call_timeout_seconds=float(call_timeout),
                 stop_on_first_error=stop_on_first_error,
+                include_exemplar_traces=include_exemplar_traces,
+                exemplar_type=str(exemplar_type),
                 server_selection=config.server_selection,
             )
             _execute_load_test(settings, smoke_config)
@@ -322,7 +375,10 @@ def _render_run_config(summary: RunSummary) -> None:
     st.markdown("**Run configuration**")
     st.caption(
         f"{config.server_selection_label} · "
-        f"service `{config.service_name}` · environment `{config.environment_name}` · "
+        f"O11y service `{config.service_name}` · Splunk log `{config.splunk_log_service}` · "
+        f"environment `{config.environment_name}` · "
+        f"exemplar traces {'on' if config.include_exemplar_traces else 'off'}"
+        f"{f' ({config.exemplar_type})' if config.include_exemplar_traces else ''} · "
         f"{config.steps_per_participant} tool call(s)/participant · "
         f"ramp-up {ramp_label} · timeout {config.call_timeout_seconds:g}s"
     )
@@ -339,6 +395,14 @@ def _render_results(summary: RunSummary) -> None:
     if slowest_tool is not None:
         tool_name, p95_ms = slowest_tool
         st.info(f"Slowest tool: `{tool_name}` (p95 {_fmt_ms(p95_ms)})")
+
+    splunk_warning = splunk_zero_row_summary(summary.records)
+    if splunk_warning:
+        st.warning(splunk_warning)
+
+    exemplar_warning = exemplar_trace_failure_summary(summary.records)
+    if exemplar_warning:
+        st.warning(exemplar_warning)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Participants", summary.participants)

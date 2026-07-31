@@ -20,8 +20,8 @@ START → identify → categorize → investigate → report → END
 | Node | What it does |
 |------|----------------|
 | `identify` | Code-first MCP alert search, then `identify_llm` / `identify_tools` sub-loop if needed |
-| `categorize` | Deterministic Python: alert → APM / IM / RUM / Synthetics |
-| `investigate` | Code-loads product skill, runs `investigate_llm` / `investigate_tools` ReAct |
+| `categorize` | Deterministic Python: alert → APM / IM / RUM / Synthetics (`route_skill:*` span only) |
+| `investigate` | Code-loads product skill into prompt, runs `investigate_llm` / `investigate_tools` ReAct |
 | `report` | Code-loads `troubleshoot-report`, formats final output |
 
 ## Key files
@@ -53,7 +53,7 @@ To refresh for a new tenant:
 | Step | Skill loaded |
 |------|----------------|
 | identify | `get-alerts-or-incidents` (preloaded into identify prompt) |
-| categorize | rules from `troubleshoot/reference.md` (code) |
+| categorize | rules from `troubleshoot/reference.md` (code) — `route_skill:*` in Galileo |
 | investigate | `troubleshoot-{apm,im,rum,synthetics}-incidents` + **search-logs** (code-loaded by product) |
 | report | `troubleshoot-report` (code-loaded) |
 

@@ -118,7 +118,6 @@ def _pick_matching_alert(
                     value = alert.get(key)
                     if isinstance(value, str) and _ids_equivalent(value, event_id):
                         return alert
-            return None
 
         incident_id = (context.get("incident_id") or "").strip()
         if incident_id:
@@ -126,7 +125,6 @@ def _pick_matching_alert(
                 alert_incident = alert.get("incidentId")
                 if isinstance(alert_incident, str) and _ids_equivalent(alert_incident, incident_id):
                     return alert
-            return None
 
         alert_id = (context.get("alert_id") or "").strip()
         if alert_id:
@@ -135,7 +133,6 @@ def _pick_matching_alert(
                     value = alert.get(key)
                     if isinstance(value, str) and _ids_equivalent(value, alert_id):
                         return alert
-            return None
 
         detector_id = (context.get("detector_id") or "").strip()
         if detector_id:
@@ -150,7 +147,6 @@ def _pick_matching_alert(
                 alert_detector = alert.get("detectorId")
                 if isinstance(alert_detector, str) and _ids_equivalent(alert_detector, detector_id):
                     return alert
-            return None
 
         return None
 

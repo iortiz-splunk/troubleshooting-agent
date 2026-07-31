@@ -6,11 +6,14 @@ from mcp_load_runner.metrics import (
     ToolCallRecord,
     build_summary,
     classify_error,
+    parse_splunk_total_rows,
     percentile,
     redact_secrets,
     slowest_tool_by_p95,
+    splunk_zero_row_summary,
     suggest_next_participants,
 )
+
 import pytest
 
 from mcp_load_runner.runner import MAX_PARTICIPANTS, LoadTestConfig
@@ -31,6 +34,43 @@ def test_redact_secrets() -> None:
     text = redact_secrets("Authorization: Bearer sk-secret-token-123")
     assert "sk-secret" not in text
     assert "REDACTED" in text
+
+
+def test_parse_splunk_total_rows() -> None:
+    assert parse_splunk_total_rows('{"results":[],"total_rows":0}') == 0
+    assert parse_splunk_total_rows('{"results":[{}],"total_rows":3}') == 3
+    assert parse_splunk_total_rows('{"results":[],"total_rows":"12"}') == 12
+    assert parse_splunk_total_rows("not json") is None
+
+
+def test_splunk_zero_row_summary() -> None:
+    records = [
+        ToolCallRecord(
+            participant_id=1,
+            step=6,
+            tool_name="splunk_run_query",
+            server="splunk_cloud_mcp",
+            started_at="2026-01-01T00:00:00+00:00",
+            duration_ms=50.0,
+            success=True,
+            splunk_total_rows=0,
+        ),
+    ]
+    message = splunk_zero_row_summary(records)
+    assert message is not None
+    assert "0 rows" in message
+
+    records[0] = ToolCallRecord(
+        participant_id=1,
+        step=6,
+        tool_name="splunk_run_query",
+        server="splunk_cloud_mcp",
+        started_at="2026-01-01T00:00:00+00:00",
+        duration_ms=50.0,
+        success=True,
+        splunk_total_rows=5,
+    )
+    assert splunk_zero_row_summary(records) is None
 
 
 def test_build_summary_aggregates() -> None:
@@ -105,6 +145,7 @@ def test_suggest_next_participants_after_clean_run() -> None:
 def test_build_summary_includes_run_config() -> None:
     run_config = RunConfigMetadata(
         service_name="api",
+        splunk_log_service="payment",
         environment_name="prod",
         server_selection_label="Splunk O11y Cloud",
         use_o11y=True,
@@ -113,6 +154,8 @@ def test_build_summary_includes_run_config() -> None:
         call_timeout_seconds=60.0,
         stop_on_first_error=False,
         steps_per_participant=5,
+        include_exemplar_traces=False,
+        exemplar_type="err",
         finished_at="2026-01-01T00:00:00+00:00",
     )
     summary = build_summary(

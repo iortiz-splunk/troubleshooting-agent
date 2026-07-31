@@ -53,9 +53,9 @@ Session: chat-… | part3_agent
     │   ├── identify_llm
     │   └── identify_tools → o11y_…
     ├── categorize
-    │   └── load_skill:troubleshoot-apm-incidents   ← routing decision (example)
+    │   └── route_skill:troubleshoot-apm-incidents   ← routing decision (no prompt injection)
     ├── investigate
-    │   ├── load_skill:troubleshoot-apm-incidents   ← product playbook
+    │   ├── load_skill:troubleshoot-apm-incidents   ← product playbook injected here
     │   ├── load_skill:search-logs                  ← mandatory log search
     │   ├── investigate_llm
     │   └── investigate_tools → o11y_… / splunk_…

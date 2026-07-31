@@ -17,7 +17,11 @@ from part1_agent.agent import build_react_subgraph
 from typing_extensions import TypedDict
 
 from part3_agent.prompt import SYSTEM_PROMPT
-from part3_agent.skill_categorizer import categorize_alert
+from part3_agent.skill_categorizer import (
+    build_context_alert,
+    categorize_investigation,
+    investigation_has_anchors,
+)
 from part3_agent.skill_router import ENTRY_SKILL_NAME
 from part3_agent.skill_tools import (
     format_log_index_catalog_for_product,
@@ -39,6 +43,13 @@ from workshop_shared.slack.alert_resolve import fetch_alert_payload
 _logger = logging.getLogger(__name__)
 INVESTIGATE_RECURSION_LIMIT = 25
 LOG_SEARCH_SKILL = "search-logs"
+IDENTIFY_TOOL_NAMES = frozenset({"o11y_search_alerts_or_incidents"})
+
+
+def _tools_for_node(tools: list[BaseTool], allowed: frozenset[str]) -> list[BaseTool]:
+    """Restrict MCP tools available to a ReAct subgraph."""
+    filtered = [tool for tool in tools if tool.name in allowed]
+    return filtered if filtered else tools
 
 # ---------------------------------------------------------------------------
 # Graph state
@@ -211,9 +222,17 @@ def _investigate_user_content(
             "then continue with other tools and summarize."
         )
     hints += _log_search_hints(alert, investigation_metadata, product_type)
+    gap_note = ""
+    if not alert and investigation_has_anchors(investigation_metadata):
+        gap_note = (
+            "\n\nAlert payload was NOT loaded from MCP — proceed using parsed metadata "
+            f"(service={mcp_params['service_name'] or '?'}, "
+            f"environment={mcp_params['environment_name'] or '?'}). "
+            "You MUST still run O11y MCP tools and splunk_run_query before concluding."
+        )
     return (
         f"Investigate this alert.\n\nUser request:\n{user_text}\n\n"
-        f"Alert payload:\n{alert_text}{hints}"
+        f"Alert payload:\n{alert_text}{gap_note}{hints}"
     )
 
 
@@ -298,11 +317,14 @@ def build_part3_graph(
 
     identify_prompt = (
         f"{base_prompt}\n\n## Identify alert (step 1)\n\n"
-        f"Load the alert payload using MCP tools. Follow this playbook:\n\n{get_alerts_skill}"
+        f"Load the alert payload using MCP tools. Follow this playbook:\n\n{get_alerts_skill}\n\n"
+        "**Identify-only constraints:** call **only** `o11y_search_alerts_or_incidents`. "
+        "Do **not** call APM metrics (`o11y_get_apm_*`), exemplar traces, or Splunk "
+        "(`splunk_*`) tools — those run in the **investigate** step after categorization."
     )
     identify_subgraph = build_react_subgraph(
         llm,
-        tools,
+        _tools_for_node(tools, IDENTIFY_TOOL_NAMES),
         system_prompt=identify_prompt,
         llm_node_name="identify_llm",
         tools_node_name="identify_tools",
@@ -366,6 +388,11 @@ def build_part3_graph(
                                     content=(
                                         "Find the alert/incident for this investigation. "
                                         f"Context metadata: {json.dumps(context)}\n\n"
+                                        "MCP search requirements:\n"
+                                        "- params.include_inactive: true\n"
+                                        "- params.limit: 500 (not 100)\n"
+                                        "- When detector_id is present, set params.detector_id first\n"
+                                        "- Widen params.time_range.start: -1h → -6h → -1d → -7d until alerts return\n\n"
                                         f"User message:\n{user_text}"
                                     )
                                 )
@@ -416,14 +443,25 @@ def build_part3_graph(
         node_config = _node_config(config, node, state)
         log_node_enter(node=node)
         with otel_span(f"agent.node.{node}", {"agent.node": node}):
-            result = categorize_alert(state.get("alert_payload"))
+            metadata = state.get("investigation_metadata")
+            alert_payload = state.get("alert_payload")
+            user_message = state.get("user_message") or ""
+            result = categorize_investigation(
+                alert_payload,
+                metadata,
+                user_message=user_message,
+            )
             skip = result.product_type == "unknown" or result.skill_name is None
+            context_alert = None
+            if alert_payload is None and not skip:
+                context_alert = build_context_alert(metadata, user_message=user_message)
         selected_skill = result.skill_name or "(none)"
         await emit_skill_load(
             node_config,
             skill_name=selected_skill,
             role="route",
             detail=f"product_type={result.product_type}",
+            span_kind="route",
         )
         if result.skill_name:
             log_skill_injected(skill_name=result.skill_name)
@@ -432,15 +470,18 @@ def build_part3_graph(
             node=node,
             phase="exit",
             investigation_metadata=state.get("investigation_metadata"),
-            alert_payload=state.get("alert_payload"),
+            alert_payload=alert_payload or context_alert,
             product_type=result.product_type,
             skill_name=result.skill_name,
         )
-        return {
+        updates: dict[str, Any] = {
             "product_type": result.product_type,
             "skill_name": result.skill_name,
             "skip_investigate": skip,
         }
+        if context_alert is not None:
+            updates["alert_payload"] = context_alert
+        return updates
 
     async def investigate_node(state: Part3State, config: RunnableConfig) -> dict[str, Any]:
         node = "investigate"

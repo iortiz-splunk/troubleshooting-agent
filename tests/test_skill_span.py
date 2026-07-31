@@ -23,3 +23,18 @@ async def test_emit_skill_load_returns_skill_payload() -> None:
     assert result["role"] == "route"
     assert result["chars_injected"] == 1800
     assert result["detail"] == "product_type=apm"
+
+
+@pytest.mark.asyncio
+async def test_emit_skill_route_uses_route_span_name() -> None:
+    parent = RunnableConfig(metadata={"agent.node": "categorize"})
+    result = await emit_skill_load(
+        parent,
+        skill_name="troubleshoot-apm-incidents",
+        role="route",
+        detail="product_type=apm",
+        span_kind="route",
+    )
+
+    assert result["action"] == "Routed to skill `troubleshoot-apm-incidents`"
+    assert "chars_injected" not in result

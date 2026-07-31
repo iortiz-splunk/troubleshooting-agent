@@ -2,21 +2,26 @@
 
 Simulate **N concurrent Part 3 APM workshop participants** hitting Splunk MCP servers — **without an LLM**. Each virtual participant opens real `mcp-remote` sessions (same as the AI SRE Agent) and runs a scripted investigation.
 
-**Default scenario (O11y only):** 5 tool calls per participant — alerts through exemplar traces.
+**Default scenario (O11y only):** 4 tool calls per participant — alerts through errors (exemplar traces **off** by default).
 
-**Full scenario (O11y + Splunk Cloud):** 6 tool calls — adds `splunk_run_query`.
+**Full scenario (O11y + Splunk Cloud):** 5 tool calls — adds `splunk_run_query`.
 
-O11y steps:
+O11y steps (always):
 
 1. `o11y_search_alerts_or_incidents`
 2. `o11y_get_apm_services`
 3. `o11y_get_apm_service_latency`
 4. `o11y_get_apm_service_errors_and_requests`
-5. `o11y_get_apm_exemplar_traces` (`exemplar_type=lat_buck_`)
+
+Optional O11y step (enable in UI or `--include-exemplar-traces`):
+
+5. `o11y_get_apm_exemplar_traces` — SignalFx GraphQL; often **503 under concurrent load**. Use for 1-participant smoke tests only, or with 60–120s ramp-up.
 
 Optional Splunk Cloud step:
 
-6. `splunk_run_query`
+6. `splunk_run_query` — searches `index=k8s-apps` for `_raw="*payment*"` by default
+
+Defaults: APM service **`payment`**, environment **`sre-agent-workshop`**, exemplar type **`err`** when exemplars are enabled.
 
 Use this to find how many simultaneous participants your MCP backends tolerate before latency spikes, throttling, or failures.
 

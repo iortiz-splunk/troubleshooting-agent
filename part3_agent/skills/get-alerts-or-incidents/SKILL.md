@@ -14,6 +14,7 @@ description: Retrieves and formats alerts or incidents from Splunk Observability
 1. **Time:** Start **`start: "-1h"`**, **`stop: "now"`**, **`include_inactive: true`**. Widen only if needed: **`-6h` → `-1d` → `-3d` → `-7d` → `-30d`** (then **`-90d`** only for long history or an **incident ID** still missing). Keep the same filters; only change **`start`**.
 
 2. **`limit` (critical):** Each call returns **at most `limit`** alerts in **no guaranteed order**.
+   - **Investigations / identify step:** Always use **`limit: 500`** — **`100` often misses cleared or inactive alerts**.
    - **“Last N” / “top N”:** Use **`limit` much larger than N** (e.g. **`500`**, or **`max(500, N×10)`** in very noisy orgs). Sort client-side, then take the first **N**.
    - **Truncation check:** If **`len(alerts) == limit`**, the window may be **cut off**—increase **`limit`**, narrow with **`detector_id`** / **`service_name`**, or widen time and accept you need multiple strategies.
    - **Fewer than N rows** after sort: widen the time ladder (step 1), not only `limit`.

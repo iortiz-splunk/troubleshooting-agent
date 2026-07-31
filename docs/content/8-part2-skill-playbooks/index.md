@@ -6,7 +6,7 @@ navTitle: "Part 2 — Skill Playbooks"
 duration: "30 minutes"
 ---
 
-Part 2 uses the **same ReAct loop as Part 1**, but adds **playbooks** — markdown skills that tell the agent which MCP tools to call, in what order, and how to format the answer. You will run the facilitator demo, see what changes in **Galileo**, then complete your own **`error-rate`** skill and run the agent again.
+Part 2 uses the **same ReAct loop as Part 1**, but adds **playbooks** — markdown skills that tell the agent which MCP tools to call, in what order, and how to format the answer. You will run the Part 2 agent, see what changes in **Galileo**, then complete your own **`error-rate`** skill and run the agent again.
 
 For background on why skills matter, see [AI Skills]({{< ref "2-ai-skills" >}}). This section focuses on **doing** Part 2.
 
@@ -31,7 +31,7 @@ Your message → keyword router → SKILL.md → system prompt → ReAct loop (L
 | `part2_agent/skills/` | Playbook library — you edit skills here |
 | `part2_agent/skills/_template/SKILL.md` | Blank template for new playbooks |
 
-## Run the facilitator demo
+## Run Part 2 agent
 
 Make sure [Part 1]({{< ref "6-part1-baseline-agent" >}}) and [Galileo Evaluators]({{< ref "7-galileo-logstream-evaluators" >}}) are done — you will compare against those sessions.
 
@@ -71,20 +71,16 @@ To confirm skills loaded, check:
 
 ### skill_router trace
 
-Part 2 logs a **`skill_router`** trace **before** the main **`Agent`** trace in the same session. In the session trace list, select **`skill_router`** (it is not a child of **`Agent`**):
+Part 2 logs a **`skill_router`** trace **before** the main **`Agent`** trace in the same session. Compare your Part 1 session (left) to a Part 2 latency demo (right):
 
-```text
-Session: chat-… | part2_agent
-├── skill_router                    ← select this trace first
-│   ├── load_skill:latency-spike      ← domain playbook (keyword match)
-│   └── load_skill:investigation-report   ← always-on report format
-└── Agent                           ← ReAct loop (MCP tools appear here)
-    ├── Agent::Agent
-    ├── tools → o11y_…
-    └── …
-```
+{{< diagram src="images/part1-vs-part2-galileo-compare.png" alt="Side-by-side Galileo Agent Stream: Part 1 Agent-only trace vs Part 2 with skill_router and load_skill spans" caption="Part 1 (left): Agent trace only. Part 2 (right): skill_router injects playbooks before the Agent loop." width="1200" >}}
 
-Click each **`load_skill:*`** span to see how many characters of that playbook were added to the system prompt.
+On the Part 2 session (right):
+
+- Select **`skill_router`** first — it is a **sibling** of **`Agent`**, not nested inside it
+- Expand **`load_skill:latency-spike`** and **`load_skill:investigation-report`** to see characters injected into the system prompt
+- Expand **`Agent`** → **`tools`** for MCP calls (`o11y_search_alerts_or_incidents`, `o11y_get_apm_service_latency`)
+- Open the **Evaluators** tab — compare scores to your Part 1 baseline on a similar alert
 
 ### Main investigation trace
 
@@ -118,8 +114,6 @@ Filter Agent Stream by session name suffix **`part2_agent`**, or use the session
 
 Every playbook lives in `part2_agent/skills/<skill-name>/SKILL.md`. Open **`skills/latency-spike/SKILL.md`** as the reference while you work.
 
-### YAML frontmatter (routing + metadata)
-
 The file starts with YAML between `---` lines:
 
 | Field | Purpose |
@@ -147,7 +141,7 @@ mcp_tools:
 ---
 ```
 
-### Markdown body (the playbook)
+Below the frontmatter, the markdown body defines the playbook:
 
 | Section | Purpose |
 |---------|---------|

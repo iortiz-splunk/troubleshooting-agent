@@ -139,7 +139,7 @@ Agent
 
 Click **`tools`** and the nested MCP span to inspect arguments and JSON responses. Compare what Galileo captured with what the terminal trace showed — they should tell the same story.
 
-{{< diagram src="images/part1-galileo-trace.png" alt="Galileo Agent Stream showing a Part 1 session with trace tree, chat, and Evaluators tab" caption="A Part 1 session in Agent Stream — trace tree on the left, conversation in the center. Evaluator scores appear after you enable them in the next section." width="960" >}}
+{{< diagram src="images/part1-galileo-trace.png" alt="Galileo Agent Stream showing a Part 1 session with trace tree, chat, and empty Evaluators tab" caption="Part 1 in Agent Stream. Evaluators are empty until the next section." width="960" >}}
 
 {{< notice title="Tip" style="tip" >}}
 Keep the Galileo console open in a browser tab during the workshop. After each investigation, refresh and locate your session — it is the fastest way to compare Part 1, Part 2, and Part 3 on the same alert.

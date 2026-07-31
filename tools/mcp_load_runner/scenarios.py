@@ -8,9 +8,13 @@ from typing import Any
 from mcp_load_runner.servers import McpServerSelection
 
 
-DEFAULT_SERVICE_NAME = "Verification"
-DEFAULT_ENVIRONMENT_NAME = "Brian-E-AD-Capital"
+DEFAULT_APM_SERVICE_NAME = "payment"
+DEFAULT_SPLUNK_LOG_SERVICE = "payment"
+DEFAULT_ENVIRONMENT_NAME = "sre-agent-workshop"
+DEFAULT_EXEMPLAR_TYPE = "err"
 DEFAULT_INDEX = "k8s-apps"
+
+VALID_EXEMPLAR_TYPES = ("req", "err", "rc_err", "lat_buck_")
 
 
 @dataclass(frozen=True)
@@ -23,7 +27,8 @@ class ToolStep:
 
 @dataclass(frozen=True)
 class ScenarioContext:
-    service_name: str = DEFAULT_SERVICE_NAME
+    service_name: str = DEFAULT_APM_SERVICE_NAME
+    splunk_log_service: str = DEFAULT_SPLUNK_LOG_SERVICE
     environment_name: str = DEFAULT_ENVIRONMENT_NAME
     time_range: dict[str, str] = field(default_factory=lambda: {"start": "-1h", "stop": "now"})
 
@@ -37,7 +42,7 @@ def _apm_params(context: ScenarioContext) -> dict[str, Any]:
 
 
 def _splunk_log_query(context: ScenarioContext) -> str:
-    service = context.service_name.replace('"', "")
+    service = context.splunk_log_service.replace('"', "")
     return (
         f'index={DEFAULT_INDEX} earliest=-1h latest=now '
         f'(sourcetype=httpevent OR sourcetype="kube:container:*") '
@@ -50,12 +55,17 @@ def build_part3_apm_scenario(
     context: ScenarioContext | None = None,
     *,
     servers: McpServerSelection | None = None,
+    include_exemplar_traces: bool = False,
+    exemplar_type: str = DEFAULT_EXEMPLAR_TYPE,
 ) -> list[ToolStep]:
     """Part 3 APM investigation tool path (identify + investigate, no LLM)."""
     ctx = context or ScenarioContext()
     selection = servers or McpServerSelection()
     params = _apm_params(ctx)
     spl_query = _splunk_log_query(ctx)
+    if exemplar_type not in VALID_EXEMPLAR_TYPES:
+        msg = f"exemplar_type must be one of {VALID_EXEMPLAR_TYPES}, got {exemplar_type!r}"
+        raise ValueError(msg)
 
     steps: list[ToolStep] = []
     if selection.use_o11y:
@@ -85,14 +95,17 @@ def build_part3_apm_scenario(
                     server="splunk_o11y",
                     arguments={"params": params},
                 ),
+            ]
+        )
+        if include_exemplar_traces:
+            steps.append(
                 ToolStep(
                     step=0,
                     tool_name="o11y_get_apm_exemplar_traces",
                     server="splunk_o11y",
-                    arguments={"params": {**params, "exemplar_type": "lat_buck_"}},
+                    arguments={"params": {**params, "exemplar_type": exemplar_type}},
                 ),
-            ]
-        )
+            )
     if selection.use_cloud:
         steps.append(
             ToolStep(
@@ -119,5 +132,15 @@ def build_part3_apm_scenario(
     ]
 
 
-def required_tool_names(servers: McpServerSelection | None = None) -> set[str]:
-    return {step.tool_name for step in build_part3_apm_scenario(servers=servers)}
+def required_tool_names(
+    servers: McpServerSelection | None = None,
+    *,
+    include_exemplar_traces: bool = False,
+) -> set[str]:
+    return {
+        step.tool_name
+        for step in build_part3_apm_scenario(
+            servers=servers,
+            include_exemplar_traces=include_exemplar_traces,
+        )
+    }

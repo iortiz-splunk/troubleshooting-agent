@@ -117,6 +117,46 @@ async def test_react_subgraph_uses_distinct_node_names() -> None:
 
 
 @pytest.mark.asyncio
+async def test_metadata_only_still_investigates() -> None:
+    settings = Settings()
+    llm = _FakeLLM()
+
+    with (
+        patch("part3_agent.graph.fetch_alert_payload", new_callable=AsyncMock) as mock_fetch,
+        patch("part3_agent.graph.build_react_subgraph") as mock_react,
+    ):
+        mock_fetch.return_value = (None, "not found")
+        mock_subgraph = MagicMock()
+        mock_subgraph.compile.return_value.ainvoke = AsyncMock(
+            return_value={"messages": [AIMessage(content="could not find alert")]}
+        )
+        mock_react.return_value = mock_subgraph
+
+        graph = build_part3_graph(llm, [], settings=settings, base_prompt="Base.")
+        app = graph.compile()
+        result = await app.ainvoke(
+            {
+                "user_message": (
+                    "Troubleshoot payment service in sre-agent-workshop. "
+                    "DetectorId HNcv52_AwAA. Rule: SRE Agent - PaymentService High Error Rate."
+                ),
+                "investigation_metadata": {
+                    "service": "payment",
+                    "environment": "sre-agent-workshop",
+                    "detector_id": "HNcv52_AwAA",
+                    "rule": "SRE Agent - PaymentService High Error Rate",
+                },
+                "skills_loaded": [],
+            }
+        )
+
+    assert result.get("product_type") == "apm"
+    assert result.get("skip_investigate") is False
+    assert result.get("alert_payload") is not None
+    assert mock_react.call_count == 2
+
+
+@pytest.mark.asyncio
 async def test_unknown_product_skips_investigate() -> None:
     settings = Settings()
     llm = _FakeLLM()

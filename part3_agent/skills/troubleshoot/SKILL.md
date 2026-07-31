@@ -53,9 +53,11 @@ Apply **get-alerts-or-incidents** (MCP tool: `o11y_search_alerts_or_incidents` w
 | **APM `sf_service`** (+ optional **`sf_environment`**) | Set **`service_name`** (exact); optional **`environments`**. Never use **`keywords`** for service names. |
 | **Vague text** | **`keywords`**: 1–2 words; if empty, retry **without** keywords and/or widen **`time_range`**. |
 
+**Identify-only:** In the **identify** graph step, call **only** `o11y_search_alerts_or_incidents`. APM metrics, exemplar traces, and Splunk log search run later in **investigate**.
+
 Extract from the payload for step 2: `detector`, `detectLabel`, `detectorId`, `incidentId`, `eventId`, `originatingMetric`, `severity`, `customProperties`, `anomaly_state_update_iso_8601_date_time`, `link`.
 
-**If the alert cannot be loaded:** State that in **troubleshoot-report** under Summary / Data gaps; still give **next steps** (paste full incident URL, detector id, service/env from UI). Do **not** invent metrics or links.
+**If the alert cannot be loaded:** Do **not** stop the workflow. When the user or Slack message includes **service**, **environment**, **detector_id**, or **rule**, continue to steps 2–4 using that metadata (APM tools + **search-logs**). Note the MCP gap in **troubleshoot-report** under Data gaps. Do **not** invent metrics or links.
 
 ---
 

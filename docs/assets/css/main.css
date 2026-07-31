@@ -469,6 +469,29 @@ a:hover {
   width: 100%;
 }
 
+.prose figure.diagram .diagram__trigger {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+  text-align: left;
+  position: relative;
+  border-radius: var(--radius);
+}
+
+.prose figure.diagram .diagram__trigger:focus-visible {
+  outline: 2px solid var(--brand, #0066cc);
+  outline-offset: 3px;
+}
+
+.prose figure.diagram .diagram__trigger:hover img {
+  border-color: var(--brand, #0066cc);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
 .prose figure.diagram img {
   display: block;
   max-width: 100%;
@@ -477,6 +500,29 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-subtle);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.prose figure.diagram .diagram__expand-hint {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.prose figure.diagram .diagram__trigger:hover .diagram__expand-hint,
+.prose figure.diagram .diagram__trigger:focus-visible .diagram__expand-hint {
+  opacity: 1;
 }
 
 .prose figure.diagram figcaption {
@@ -484,6 +530,96 @@ a:hover {
   font-size: 0.8125rem;
   color: var(--text-muted);
   text-align: left;
+}
+
+/* Image lightbox (diagram expand) */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.lightbox[hidden] {
+  display: none;
+}
+
+.lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.88);
+  border: none;
+  padding: 0;
+  cursor: zoom-out;
+}
+
+.lightbox__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: min(96vw, 1400px);
+  max-height: 92vh;
+  margin: 0;
+}
+
+.lightbox__img {
+  display: block;
+  max-width: 96vw;
+  max-height: calc(92vh - 3rem);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+.lightbox__caption {
+  margin-top: 0.75rem;
+  max-width: 96vw;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+
+.lightbox__close {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #111827;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.lightbox__close:hover {
+  background: #fff;
+}
+
+.lightbox__close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+body.lightbox-open {
+  overflow: hidden;
 }
 
 /* Collapsible sections (collapse shortcode) */

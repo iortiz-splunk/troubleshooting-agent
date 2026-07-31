@@ -1,6 +1,11 @@
 """Tests for Part 3 alert categorizer."""
 
-from part3_agent.skill_categorizer import categorize_alert
+from part3_agent.skill_categorizer import (
+    build_context_alert,
+    categorize_alert,
+    categorize_investigation,
+    investigation_has_anchors,
+)
 
 
 def test_categorize_apm_by_sf_service() -> None:
@@ -51,3 +56,39 @@ def test_categorize_unknown_when_empty() -> None:
     result = categorize_alert(None)
     assert result.product_type == "unknown"
     assert result.skill_name is None
+
+
+def test_investigation_has_anchors_payment_workshop() -> None:
+    metadata = {
+        "service": "payment",
+        "environment": "sre-agent-workshop",
+        "detector_id": "HNcv52_AwAA",
+        "rule": "SRE Agent - PaymentService High Error Rate",
+    }
+    assert investigation_has_anchors(metadata) is True
+
+
+def test_build_context_alert_from_workshop_metadata() -> None:
+    alert = build_context_alert(
+        {
+            "service": "payment",
+            "environment": "sre-agent-workshop",
+            "detector_id": "HNcv52_AwAA",
+            "rule": "SRE Agent - PaymentService High Error Rate",
+        }
+    )
+    assert alert is not None
+    assert alert["customProperties"]["sf_service"] == "payment"
+    assert alert["originatingMetric"] == "request.error"
+
+
+def test_categorize_investigation_without_mcp_payload() -> None:
+    metadata = {
+        "service": "payment",
+        "environment": "sre-agent-workshop",
+        "detector_id": "HNcv52_AwAA",
+        "rule": "SRE Agent - PaymentService High Error Rate",
+    }
+    result = categorize_investigation(None, metadata)
+    assert result.product_type == "apm"
+    assert result.skill_name == "troubleshoot-apm-incidents"
