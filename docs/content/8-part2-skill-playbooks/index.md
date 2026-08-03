@@ -16,7 +16,7 @@ For background on why skills matter, see [AI Skills]({{< ref "2-ai-skills" >}}).
 |-----------|--------|--------|
 | **Agent loop** | LangGraph ReAct | Same ReAct loop |
 | **Playbooks** | None | One **domain** skill + always-on **`investigation-report`** |
-| **Routing** | — | Keyword match on your chat/alert text (`alert_signals` in frontmatter) |
+| **Routing** | — | Keyword match on your chat/alert text (`alert_signals` in SKILL.md YAML) |
 | **Galileo session** | `chat-… \| part1_agent` | `chat-… \| part2_agent` |
 | **Extra Galileo trace** | — | **`skill_router`** — all skills injected **before** the ReAct loop |
 
@@ -141,7 +141,7 @@ mcp_tools:
 ---
 ```
 
-Below the frontmatter, the markdown body defines the playbook:
+Below the YAML block, the markdown body defines the playbook:
 
 | Section | Purpose |
 |---------|---------|
@@ -195,7 +195,7 @@ Part 2 playbooks focus on **`o11y_*`** tools. Log search skills use **`splunk_*`
 {{< /collapse >}}
 
 1. Open **`skills/error-rate/SKILL.md`** in your editor.
-2. **Frontmatter** — replace the `TODO` entries:
+2. **SKILL.md YAML** — replace the `TODO` entries:
    - **`description`** — one line: investigate error-rate / 5xx alerts using APM error metrics
    - **`alert_signals`** — include `error`, `errors`, and `5xx` (add others if useful)
    - **`mcp_tools`** — list `o11y_search_alerts_or_incidents` and `o11y_get_apm_service_errors_and_requests`
@@ -232,6 +232,8 @@ troubleshooting-agent chat "Investigate elevated 5xx errors on payment in the sr
 2. Expand **`skill_router`** — expect **`load_skill:error-rate`** and **`load_skill:investigation-report`**.
 3. Expand the main trace — expect at least **`o11y_search_alerts_or_incidents`** and **`o11y_get_apm_service_errors_and_requests`** under **`tools`** spans.
 4. Open **Evaluators** — compare scores to your Part 1 and latency-demo Part 2 sessions.
+
+{{< diagram src="images/part2-error-rate-galileo.png" alt="Galileo Agent Stream showing Part 2 error-rate skill_router, MCP tool calls, and evaluator scores" caption="Part 2 after completing the error-rate skill — skill_router, playbook tools, and evaluator scores." width="1200" >}}
 
 Work through this checklist:
 

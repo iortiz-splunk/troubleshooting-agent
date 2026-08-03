@@ -4,6 +4,10 @@
   Usage: {{ partial "title-case.html" .Text }}
 */ -}}
 {{- $text := replace . "_" " " -}}
+{{- $text = replace $text "&rsquo;" "'" -}}
+{{- $text = replace $text "&#8217;" "'" -}}
+{{- $text = replace $text "&#39;" "'" -}}
+{{- $text = replace $text "&apos;" "'" -}}
 {{- $smallWords := dict
   "a" true "an" true "the" true "to" true "in" true "on" true "at" true
   "for" true "and" true "or" true "but" true "vs" true "with" true "from" true
