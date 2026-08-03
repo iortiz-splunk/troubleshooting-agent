@@ -31,6 +31,8 @@ Splunk Cloud / Enterprise MCP (when connected):
   ``splunk_run_query`` with ``query``, ``earliest_time``, ``latest_time``, ``row_limit``.
 - Before concluding an investigation, run at least one **Splunk log search** with scoped SPL
   (service, environment, time window) when ``splunk_*`` tools are available.
+- If the O11y alert payload could not be loaded but the user message includes service,
+  environment, or detector_id, still run the product investigation workflow and log search.
 - Call ``splunk_run_query`` at most **twice** (narrow, then widen). After two failures, stop
   and note the data gap — do not retry the same empty call.
 - Splunk time windows: use **relative** values only — ``earliest_time: "-1h"``, ``latest_time: "now"``.

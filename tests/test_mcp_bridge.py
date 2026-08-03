@@ -85,6 +85,50 @@ def test_normalize_mcp_arguments_coerces_time_range_string() -> None:
     }
 
 
+def test_normalize_mcp_arguments_splunk_flat_query() -> None:
+    schema = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string"},
+            "earliest_time": {"type": "string"},
+            "latest_time": {"type": "string"},
+        },
+        "required": ["query"],
+    }
+    assert _normalize_mcp_arguments(
+        schema,
+        {"query": "index=k8s-apps | head 10", "earliest_time": "-1h", "latest_time": "now"},
+    ) == {
+        "query": "index=k8s-apps | head 10",
+        "earliest_time": "-1h",
+        "latest_time": "now",
+    }
+
+
+def test_normalize_mcp_arguments_unwraps_splunk_query_from_params() -> None:
+    schema = {
+        "type": "object",
+        "properties": {"query": {"type": "string"}},
+        "required": ["query"],
+    }
+    assert _normalize_mcp_arguments(
+        schema,
+        {"params": {"query": "index=k8s-apps | head 5", "earliest_time": "-30m"}},
+    ) == {
+        "query": "index=k8s-apps | head 5",
+        "earliest_time": "-30m",
+    }
+
+
+def test_normalize_mcp_arguments_empty_params_not_wrapped_for_splunk() -> None:
+    schema = {
+        "type": "object",
+        "properties": {"query": {"type": "string"}},
+        "required": ["query"],
+    }
+    assert _normalize_mcp_arguments(schema, {"params": {}}) == {}
+
+
 @pytest.mark.asyncio
 async def test_create_langchain_tools_from_session() -> None:
     session = AsyncMock()

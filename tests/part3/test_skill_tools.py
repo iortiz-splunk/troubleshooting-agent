@@ -63,6 +63,27 @@ def test_format_log_index_catalog_for_apm() -> None:
     assert "do not search" in text
 
 
+def test_format_log_index_catalog_payment_alias() -> None:
+    catalog = load_log_index_catalog(catalog_path=LOG_INDEX_CATALOG_PATH)
+    text = format_log_index_catalog_for_product(
+        "apm",
+        catalog=catalog,
+        service_name="paymentservice",
+    )
+    assert "kube:container:payment" in text
+    assert "paymentservice" in text  # shown as APM name in hint
+
+
+def test_resolve_kube_container_name() -> None:
+    from part3_agent.skill_tools import resolve_kube_container_name
+
+    catalog = load_log_index_catalog(catalog_path=LOG_INDEX_CATALOG_PATH)
+    assert resolve_kube_container_name("paymentservice", catalog) == "payment"
+    assert resolve_kube_container_name("payment", catalog) == "payment"
+    assert resolve_kube_container_name("cartservice", catalog) == "cart"
+    assert resolve_kube_container_name("Verification", catalog) == "verification"
+
+
 def test_format_log_index_catalog_unknown_product_uses_defaults() -> None:
     catalog = load_log_index_catalog(catalog_path=LOG_INDEX_CATALOG_PATH)
     text = format_log_index_catalog_for_product("unknown", catalog=catalog)

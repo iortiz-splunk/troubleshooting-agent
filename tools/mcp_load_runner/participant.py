@@ -16,11 +16,16 @@ from mcp_load_runner.diagnostics import get_logger
 from mcp_load_runner.metrics import (
     ToolCallRecord,
     classify_error,
+    parse_splunk_total_rows,
     truncate_message,
     utc_now_iso,
 )
 from mcp_load_runner.scenarios import ScenarioContext, ToolStep, build_part3_apm_scenario
 from mcp_load_runner.servers import McpServerSelection
+
+_RETRYABLE_ERROR_TOKENS = ("429", "502", "503", "504", "rate limit", "throttl")
+_MAX_TOOL_RETRIES = 1
+_RETRY_BACKOFF_SECONDS = 2.0
 
 
 async def run_one_participant(
@@ -54,7 +59,7 @@ async def run_one_participant(
             )
 
             for step in sequence:
-                record = await _invoke_step(
+                record = await _invoke_step_with_retry(
                     participant_id=participant_id,
                     step=step,
                     tools_by_name=tools_by_name,
@@ -109,6 +114,48 @@ async def run_one_participant(
     return records, overall_success, participant_error
 
 
+async def _invoke_step_with_retry(
+    *,
+    participant_id: int,
+    step: ToolStep,
+    tools_by_name: dict[str, BaseTool],
+    timeout_seconds: float,
+) -> ToolCallRecord:
+    record = await _invoke_step(
+        participant_id=participant_id,
+        step=step,
+        tools_by_name=tools_by_name,
+        timeout_seconds=timeout_seconds,
+    )
+    if record.success or _MAX_TOOL_RETRIES < 1:
+        return record
+    if not _is_retryable_error(record.error_message):
+        return record
+
+    logger = get_logger()
+    logger.info(
+        "Participant %s step %s (%s): retrying after %s",
+        participant_id,
+        step.step,
+        step.tool_name,
+        record.error_message,
+    )
+    await asyncio.sleep(_RETRY_BACKOFF_SECONDS)
+    return await _invoke_step(
+        participant_id=participant_id,
+        step=step,
+        tools_by_name=tools_by_name,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def _is_retryable_error(error_message: str | None) -> bool:
+    if not error_message:
+        return False
+    lower = error_message.lower()
+    return any(token in lower for token in _RETRYABLE_ERROR_TOKENS)
+
+
 async def _invoke_step(
     *,
     participant_id: int,
@@ -156,6 +203,11 @@ async def _invoke_step(
                 response_bytes=len(response_text.encode("utf-8")),
             )
 
+        splunk_total_rows = (
+            parse_splunk_total_rows(response_text)
+            if step.tool_name == "splunk_run_query"
+            else None
+        )
         return ToolCallRecord(
             participant_id=participant_id,
             step=step.step,
@@ -165,6 +217,7 @@ async def _invoke_step(
             duration_ms=duration_ms,
             success=True,
             response_bytes=len(response_text.encode("utf-8")),
+            splunk_total_rows=splunk_total_rows,
         )
     except TimeoutError:
         duration_ms = (time.perf_counter() - start) * 1000.0
@@ -206,5 +259,12 @@ def build_steps_for_context(
     context: ScenarioContext,
     *,
     servers: McpServerSelection | None = None,
+    include_exemplar_traces: bool = False,
+    exemplar_type: str = "err",
 ) -> list[ToolStep]:
-    return build_part3_apm_scenario(context, servers=servers)
+    return build_part3_apm_scenario(
+        context,
+        servers=servers,
+        include_exemplar_traces=include_exemplar_traces,
+        exemplar_type=exemplar_type,
+    )

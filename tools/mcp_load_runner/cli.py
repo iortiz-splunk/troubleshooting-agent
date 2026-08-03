@@ -9,7 +9,12 @@ from pathlib import Path
 import typer
 
 from mcp_load_runner.diagnostics import configure_load_test_logging
-from mcp_load_runner.metrics import records_to_csv, summary_to_json
+from mcp_load_runner.metrics import (
+    exemplar_trace_failure_summary,
+    records_to_csv,
+    splunk_zero_row_summary,
+    summary_to_json,
+)
 from mcp_load_runner.preflight import run_preflight
 from mcp_load_runner.runner import (
     MAX_PARTICIPANTS,
@@ -17,7 +22,14 @@ from mcp_load_runner.runner import (
     estimated_mcp_subprocesses,
     run_load_test,
 )
-from mcp_load_runner.scenarios import required_tool_names
+from mcp_load_runner.scenarios import (
+    DEFAULT_APM_SERVICE_NAME,
+    DEFAULT_ENVIRONMENT_NAME,
+    DEFAULT_EXEMPLAR_TYPE,
+    DEFAULT_SPLUNK_LOG_SERVICE,
+    VALID_EXEMPLAR_TYPES,
+    required_tool_names,
+)
 from mcp_load_runner.servers import McpServerSelection
 from workshop_shared.config import Settings
 from workshop_shared.workshop_context import find_repo_root
@@ -95,8 +107,27 @@ def run_command(
         "--ramp-up",
         help="Seconds to stagger participant starts (0 = all at once).",
     ),
-    service: str = typer.Option("Verification", "--service"),
-    environment: str = typer.Option("Brian-E-AD-Capital", "--environment"),
+    service: str = typer.Option(
+        DEFAULT_APM_SERVICE_NAME,
+        "--service",
+        help="APM service for O11y MCP tools.",
+    ),
+    splunk_service: str = typer.Option(
+        DEFAULT_SPLUNK_LOG_SERVICE,
+        "--splunk-service",
+        help="Service token for Splunk log _raw search.",
+    ),
+    environment: str = typer.Option(DEFAULT_ENVIRONMENT_NAME, "--environment"),
+    include_exemplar_traces: bool = typer.Option(
+        False,
+        "--include-exemplar-traces",
+        help="Include o11y_get_apm_exemplar_traces (SignalFx GraphQL; often 503 under load).",
+    ),
+    exemplar_type: str = typer.Option(
+        DEFAULT_EXEMPLAR_TYPE,
+        "--exemplar-type",
+        help=f"Exemplar type when --include-exemplar-traces is set: {', '.join(VALID_EXEMPLAR_TYPES)}",
+    ),
     timeout: float = typer.Option(60.0, "--timeout", help="Per-tool timeout in seconds."),
     stop_on_error: bool = typer.Option(
         False,
@@ -140,7 +171,10 @@ def run_command(
             run_preflight(
                 settings,
                 server_selection=server_selection,
-                required_tools=required_tool_names(server_selection),
+                required_tools=required_tool_names(
+                    server_selection,
+                    include_exemplar_traces=include_exemplar_traces,
+                ),
                 env_file=str(env_file) if env_file.is_file() else None,
             )
         )
@@ -152,9 +186,12 @@ def run_command(
         participants=participants,
         ramp_up_seconds=ramp_up,
         service_name=service.strip(),
+        splunk_log_service=splunk_service.strip(),
         environment_name=environment.strip(),
         call_timeout_seconds=timeout,
         stop_on_first_error=stop_on_error,
+        include_exemplar_traces=include_exemplar_traces,
+        exemplar_type=exemplar_type.strip(),
         server_selection=server_selection,
     )
 
@@ -173,6 +210,12 @@ def run_command(
     )
     if summary.errors_by_type:
         typer.echo(f"Errors by type: {json.dumps(summary.errors_by_type)}")
+    splunk_warning = splunk_zero_row_summary(summary.records)
+    if splunk_warning:
+        typer.echo(f"Warning: {splunk_warning}", err=True)
+    exemplar_warning = exemplar_trace_failure_summary(summary.records)
+    if exemplar_warning:
+        typer.echo(f"Warning: {exemplar_warning}", err=True)
 
     if output_json is not None:
         output_json.write_text(summary_to_json(summary), encoding="utf-8")

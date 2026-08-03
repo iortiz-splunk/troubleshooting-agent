@@ -14,14 +14,23 @@ async def emit_skill_load(
     role: str,
     chars: int | None = None,
     detail: str | None = None,
+    span_kind: str = "load",
 ) -> dict[str, Any]:
-    """Run a short child chain named load_skill:<skill> under the current graph node."""
+    """Emit a skill span under the current graph node.
+
+    span_kind:
+      - ``load`` (default): skill content injected into an LLM prompt → ``load_skill:<name>``
+      - ``route``: code-only routing decision, no prompt injection → ``route_skill:<name>``
+    """
+    is_route = span_kind == "route"
+    span_prefix = "route_skill" if is_route else "load_skill"
+    action_verb = "Routed to skill" if is_route else "Loaded skill"
 
     async def _marker(_: Any) -> dict[str, Any]:
         output: dict[str, Any] = {
             "skill": skill_name,
             "role": role,
-            "action": f"Loaded skill `{skill_name}` into agent context",
+            "action": f"{action_verb} `{skill_name}`",
         }
         if chars is not None:
             output["chars_injected"] = chars
@@ -33,26 +42,27 @@ async def emit_skill_load(
     metadata = dict(base.get("metadata") or {})
     metadata["agent.skill_loaded"] = skill_name
     metadata["agent.skill_role"] = role
+    metadata["agent.skill_span_kind"] = span_kind
     if chars is not None:
         metadata["agent.skill_chars_injected"] = str(chars)
     if detail:
         metadata["agent.skill_detail"] = detail
 
     tags = list(base.get("tags") or [])
-    tag = f"load_skill:{skill_name}"
+    tag = f"{span_prefix}:{skill_name}"
     if tag not in tags:
         tags.append(tag)
 
     load_config = RunnableConfig(
         **{
             **base,
-            "run_name": f"load_skill:{skill_name}",
+            "run_name": f"{span_prefix}:{skill_name}",
             "metadata": metadata,
             "tags": tags,
         }
     )
 
-    span_input = f"Load skill `{skill_name}` ({role})"
+    span_input = f"{action_verb} `{skill_name}` ({role})"
     if detail:
         span_input += f"; {detail}"
 

@@ -126,11 +126,11 @@ After your chat completes, open the **Galileo console** and navigate to:
 Select the **newest** session. When the environment is in the prompt, the trace tree often shows **multiple tool rounds** — the agent is trying, even if the final answer is still incomplete:
 
 ```text
-Agent (~16s)
+Agent (~20s)
 ├── Agent:agent
 │   ├── should_continue
 │   └── tools
-│       └── o11y_search_alerts_or_incidents
+│       └── o11y_get_apm_services
 ├── Agent:agent
 │   ├── should_continue
 │   └── tools
@@ -149,7 +149,7 @@ The center panel shows the **chat** — your query and the agent's final respons
 
 Click into each **`tools`** span to inspect MCP inputs, outputs, and span-level evaluators. Use the **chat** panel and **Evaluators** tab together — a detailed-sounding answer can still score low if the agent did not complete the investigation.
 
-{{< diagram src="images/part1-galileo-trace-with-env.png" alt="Galileo Agent Stream showing a deeper Part 1 run with multiple MCP tools and low evaluator scores" caption="With the environment in the prompt, the agent calls alert search and APM error tools — but Action Completion (SLM) can still be 1% when the answer stops at suggested next steps instead of a root cause." width="960" >}}
+{{< diagram src="images/part1-galileo-trace-with-env.png" alt="Galileo Agent Stream showing a Part 1 re-run with evaluator scores in the Agent Quality panel" caption="Part 1 re-run with evaluators enabled. Low action scores are common when the agent stops at suggested next steps." width="960" >}}
 
 Work through this checklist using **`payment`** in environment **`sre-agent-workshop`**:
 
@@ -178,9 +178,9 @@ A shallow run (missing environment) is still useful baseline data:
 
 A deeper run that **still scores low** is common in Part 1 — the screenshot above is a real example:
 
-- Prompt includes environment; agent calls `o11y_search_alerts_or_incidents` and `o11y_get_apm_service_errors_and_requests`
-- Chat cites real numbers (for example, ~398 errors out of 1250 requests) — looks productive at first glance
-- **Action Completion (SLM)** and **Action Advancement (SLM)** — still **1%** because the agent stops at a summary and offers "next steps" instead of finishing the investigation
+- Prompt includes environment; agent calls `o11y_get_apm_services` and `o11y_get_apm_service_errors_and_requests`
+- Chat cites real numbers (for example, 68 errors in the last hour) — looks productive at first glance
+- **Action Completion (SLM)** and **Action Advancement (SLM)** — still low (for example **2%**) because the agent stops at a summary and offers "next steps" instead of finishing the investigation
 - **Agent Efficiency** — may show **System error**; ask your facilitator if an evaluator fails to score
 
 Other weak patterns to watch for:

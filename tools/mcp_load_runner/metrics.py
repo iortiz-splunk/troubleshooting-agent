@@ -70,6 +70,7 @@ class ToolCallRecord:
     error_type: str | None = None
     error_message: str | None = None
     response_bytes: int = 0
+    splunk_total_rows: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -97,6 +98,7 @@ class RunConfigMetadata:
     """Run parameters stored with results for comparison and export."""
 
     service_name: str
+    splunk_log_service: str
     environment_name: str
     server_selection_label: str
     use_o11y: bool
@@ -105,6 +107,8 @@ class RunConfigMetadata:
     call_timeout_seconds: float
     stop_on_first_error: bool
     steps_per_participant: int
+    include_exemplar_traces: bool
+    exemplar_type: str
     finished_at: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -140,6 +144,63 @@ class RunSummary:
         if self.run_config is not None:
             payload["run_config"] = self.run_config.to_dict()
         return payload
+
+
+def parse_splunk_total_rows(response_text: str) -> int | None:
+    """Extract total_rows from a splunk_run_query JSON response."""
+    try:
+        payload = json.loads(response_text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    total_rows = payload.get("total_rows")
+    if isinstance(total_rows, int):
+        return total_rows
+    if isinstance(total_rows, str) and total_rows.isdigit():
+        return int(total_rows)
+    return None
+
+
+def splunk_zero_row_summary(records: list[ToolCallRecord]) -> str | None:
+    """Return a warning when every parsed splunk_run_query call returned zero rows."""
+    splunk_ok = [
+        record
+        for record in records
+        if record.tool_name == "splunk_run_query" and record.success
+    ]
+    if not splunk_ok:
+        return None
+    parsed = [record for record in splunk_ok if record.splunk_total_rows is not None]
+    if not parsed or not all(record.splunk_total_rows == 0 for record in parsed):
+        return None
+    return (
+        f"All {len(parsed)} splunk_run_query call(s) returned 0 rows. "
+        "Splunk latency may look artificially low — use a service name that appears "
+        "in log _raw text (default: payment)."
+    )
+
+
+def exemplar_trace_failure_summary(records: list[ToolCallRecord]) -> str | None:
+    """Return guidance when exemplar trace calls fail (often SignalFx GraphQL 503 under load)."""
+    failures = [
+        record
+        for record in records
+        if record.tool_name == "o11y_get_apm_exemplar_traces" and not record.success
+    ]
+    if not failures:
+        return None
+    messages = " ".join(record.error_message or "" for record in failures).lower()
+    if "503" in messages or "graphql" in messages:
+        return (
+            f"{len(failures)} exemplar trace call(s) failed with SignalFx GraphQL errors (often 503 under "
+            "concurrent load). Uncheck **Include exemplar traces** for capacity tests, or use ramp-up "
+            "60–120s and dry-run with 1 participant first."
+        )
+    return (
+        f"{len(failures)} exemplar trace call(s) failed — verify service/environment and exemplar_type "
+        "(err for error alerts, lat_buck_ for latency)."
+    )
 
 
 def slowest_tool_by_p95(

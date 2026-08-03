@@ -44,25 +44,6 @@ The repository is at `~/troubleshooting-agent` on your instance. Follow the work
 7. [Part 3 — Full Workflow]({{< ref "9-part3-full-workflow" >}})
 8. [Production-Ready Agent]({{< ref "10-production-ready-agent" >}}) *(optional)*
 
-## Workshop flow
-
-The workshop is organized into setup steps and three agent parts:
-
-0. **Setup** — Connect to EC2, deploy the OTel collector, configure Galileo, verify doctors
-1. **Part 1 — Baseline agent** — Run the minimal MCP-only agent. Observe what it finds without playbooks.
-2. **Galileo evaluators** — Enable log stream evaluators to score tool selection, grounding, and hallucination risk.
-3. **Part 2 — Skill playbooks** — Run keyword-injected skills, author the error-rate playbook, compare Galileo evaluators.
-4. **Part 3 — Full workflow** — Explore the four-node LangGraph graph; see skills load **per workflow step** (different from Part 2's upfront router).
-5. **Production-ready agent** *(optional)* — Hardening checklist for live incident use after the workshop.
-
-## Key concepts
-
-**MCP tools** — The agent calls Splunk Observability and Splunk Cloud through MCP rather than hard-coded API clients. Tools like `o11y_get_apm_service_latency` and `splunk_run_query` appear in the agent's tool list at runtime.
-
-**Skills (playbooks)** — Markdown files with YAML frontmatter that describe when to use a playbook, which tools to call, and how to interpret results. Skills turn open-ended LLM reasoning into repeatable investigation steps. See the [AI Skills]({{< ref "2-ai-skills" >}}) section for why they matter, how to create them, and repo examples.
-
-**Structured traces** — With `AGENT_LOG_TRACE=true` (the default), every investigation prints numbered steps, tool calls, and a final response block to the terminal. JSONL trace files are also written to `shared/logs/investigations/` for post-run review.
-
 {{< notice title="Tips" style="tip" >}}
 - Run commands from the **part directory** (`part1_agent/`, `part2_agent/`, `part3_agent/`) — the CLI picks up the agent for that part automatically.
 - Workshop demo defaults: service **`payment`**, environment **`sre-agent-workshop`** — include both in chat prompts during Parts 1 and 2.

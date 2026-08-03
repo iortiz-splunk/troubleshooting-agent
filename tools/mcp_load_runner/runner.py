@@ -20,7 +20,13 @@ from mcp_load_runner.metrics import (
     utc_now_iso,
 )
 from mcp_load_runner.participant import build_steps_for_context, run_one_participant
-from mcp_load_runner.scenarios import ScenarioContext
+from mcp_load_runner.scenarios import (
+    DEFAULT_APM_SERVICE_NAME,
+    DEFAULT_ENVIRONMENT_NAME,
+    DEFAULT_EXEMPLAR_TYPE,
+    DEFAULT_SPLUNK_LOG_SERVICE,
+    ScenarioContext,
+)
 from mcp_load_runner.servers import McpServerSelection, apply_server_selection
 
 MAX_PARTICIPANTS = 200
@@ -32,10 +38,13 @@ EC2_RECOMMENDED_MIN_PARTICIPANTS = 50
 class LoadTestConfig:
     participants: int
     ramp_up_seconds: float = 0.0
-    service_name: str = "Verification"
-    environment_name: str = "Brian-E-AD-Capital"
+    service_name: str = DEFAULT_APM_SERVICE_NAME
+    splunk_log_service: str = DEFAULT_SPLUNK_LOG_SERVICE
+    environment_name: str = DEFAULT_ENVIRONMENT_NAME
     call_timeout_seconds: float = 60.0
     stop_on_first_error: bool = False
+    include_exemplar_traces: bool = False
+    exemplar_type: str = DEFAULT_EXEMPLAR_TYPE
     server_selection: McpServerSelection = field(default_factory=McpServerSelection)
 
     def __post_init__(self) -> None:
@@ -77,9 +86,15 @@ async def run_load_test(
     )
     context = ScenarioContext(
         service_name=config.service_name,
+        splunk_log_service=config.splunk_log_service,
         environment_name=config.environment_name,
     )
-    steps = build_steps_for_context(context, servers=config.server_selection)
+    steps = build_steps_for_context(
+        context,
+        servers=config.server_selection,
+        include_exemplar_traces=config.include_exemplar_traces,
+        exemplar_type=config.exemplar_type,
+    )
 
     progress = RunProgress(total_participants=config.participants)
     if on_progress is not None:
@@ -148,6 +163,7 @@ async def run_load_test(
 
     run_config = RunConfigMetadata(
         service_name=config.service_name,
+        splunk_log_service=config.splunk_log_service,
         environment_name=config.environment_name,
         server_selection_label=config.server_selection.label,
         use_o11y=config.server_selection.use_o11y,
@@ -156,6 +172,8 @@ async def run_load_test(
         call_timeout_seconds=config.call_timeout_seconds,
         stop_on_first_error=config.stop_on_first_error,
         steps_per_participant=len(steps),
+        include_exemplar_traces=config.include_exemplar_traces,
+        exemplar_type=config.exemplar_type,
         finished_at=utc_now_iso(),
     )
     summary = build_summary(

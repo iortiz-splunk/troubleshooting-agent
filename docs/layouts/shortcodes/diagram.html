@@ -1,16 +1,25 @@
 {{/*
   Usage:
   {{< diagram src="images/ai-agent-components.svg" alt="Description" caption="Optional caption" >}}
+  Click the image to expand it in a lightbox.
 */}}
-<figure class="diagram">
-  <img
-    src="{{ (.Get "src") | relURL }}"
-    alt="{{ .Get "alt" | default "" }}"
-    {{ with .Get "width" }}width="{{ . }}"{{ else }}width="720"{{ end }}
-    loading="lazy"
-    decoding="async"
-  />
+<figure class="diagram diagram--zoomable">
+  <button
+    type="button"
+    class="diagram__trigger"
+    aria-label="{{ .Get "alt" | default "Expand diagram" }}"
+    data-lightbox-trigger
+  >
+    <img
+      src="{{ (.Get "src") | relURL }}"
+      alt="{{ .Get "alt" | default "" }}"
+      {{ with .Get "width" }}width="{{ . }}"{{ else }}width="720"{{ end }}
+      loading="lazy"
+      decoding="async"
+    />
+    <span class="diagram__expand-hint" aria-hidden="true">Click to expand</span>
+  </button>
   {{ with .Get "caption" }}
-  <figcaption>{{ . }}</figcaption>
+  <figcaption>{{ . | safeHTML }}</figcaption>
   {{ end }}
 </figure>

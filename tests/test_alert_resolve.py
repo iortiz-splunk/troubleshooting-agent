@@ -130,6 +130,36 @@ def test_pick_matching_alert_returns_none_when_anchor_missing_from_results() -> 
     assert match is None
 
 
+def test_pick_matching_alert_falls_back_to_detector_when_event_id_stale() -> None:
+    """Stale event_id from UI should not block detector_id match."""
+    alerts = [
+        {
+            "id": "HOQzh1LAwAA",
+            "eventId": "HOfjDWQA0AU",
+            "incidentId": "HOeV_VmA0Bw",
+            "detectorId": "HNcv52_AwAA",
+            "detectLabel": "SRE Agent - PaymentService High Error Rate",
+            "customProperties": {
+                "sf_service": "payment",
+                "sf_environment": "sre-agent-workshop",
+            },
+        },
+    ]
+    match = _pick_matching_alert(
+        alerts,
+        {
+            "event_id": "HOfTd1TA0AE",
+            "detector_id": "HNcv52_AwAA",
+            "service": "payment",
+            "environment": "sre-agent-workshop",
+            "rule": "SRE Agent - PaymentService High Error Rate",
+        },
+    )
+    assert match is not None
+    assert match["eventId"] == "HOfjDWQA0AU"
+    assert match["detectorId"] == "HNcv52_AwAA"
+
+
 def test_parse_o11y_alert_context_extracts_workshop_cli_prompt() -> None:
     text = (
         "Troubleshoot the Splunk Observability alert: payment service in "
