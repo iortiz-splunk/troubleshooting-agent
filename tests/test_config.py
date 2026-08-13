@@ -1,5 +1,7 @@
 """Tests for application settings."""
 
+from pathlib import Path
+
 import pytest
 
 from workshop_shared.config import Settings, default_agent_log_dir
@@ -154,6 +156,39 @@ def test_enable_splunk_cloud_mcp_false_is_not_auto_enabled(monkeypatch: pytest.M
         splunk_cloud_mcp_url="https://mcp.example:8089/services/mcp",
         splunk_cloud_mcp_bearer_token="token",
     )
+    assert settings.enable_splunk_cloud_mcp is False
+
+
+def test_enable_splunk_o11y_false_in_dotenv_is_not_auto_enabled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "ENABLE_SPLUNK_O11Y=false\n"
+        "SPLUNK_O11Y_GATEWAY_URL=https://mcp.example:8089/services/mcp\n"
+        "SPLUNK_O11Y_REALM=us1\n"
+        "SPLUNK_O11Y_API_TOKEN=token\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("ENABLE_SPLUNK_O11Y", raising=False)
+    settings = Settings(_env_file=env_file)
+    assert settings.enable_splunk_o11y is False
+
+
+def test_enable_splunk_cloud_mcp_false_in_dotenv_is_not_auto_enabled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "ENABLE_SPLUNK_CLOUD_MCP=false\n"
+        "SPLUNK_CLOUD_MCP_URL=https://mcp.example:8089/services/mcp\n"
+        "SPLUNK_CLOUD_MCP_BEARER_TOKEN=token\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("ENABLE_SPLUNK_CLOUD_MCP", raising=False)
+    settings = Settings(_env_file=env_file)
     assert settings.enable_splunk_cloud_mcp is False
 
 

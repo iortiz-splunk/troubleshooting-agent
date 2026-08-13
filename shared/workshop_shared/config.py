@@ -24,15 +24,40 @@ def _feature_enabled(requested: bool, credentials: dict[str, str | None]) -> boo
     return all(credentials.values())
 
 
-def _env_toggle_explicitly_off(*names: str) -> bool:
-    """True when an ENABLE_* env var is set to a false-like value."""
-    false_values = {"0", "false", "no", "off"}
+def _env_var_configured(*names: str, env_file: Path | None = None) -> bool:
+    """True when a toggle appears in os.environ or a dotenv file (any value).
+
+    Used to distinguish "ENABLE_* unset → allow auto-enable from credentials"
+    from "ENABLE_* explicitly false in .env" (pydantic loads .env without
+    exporting every key to os.environ).
+    """
     for name in names:
-        raw = os.environ.get(name)
-        if raw is None:
-            continue
-        if raw.strip().lower() in false_values:
+        if name in os.environ:
             return True
+
+    paths: list[Path] = []
+    if env_file is not None and env_file.is_file():
+        paths.append(env_file)
+    else:
+        from workshop_shared.workshop_context import find_env_file
+
+        discovered = find_env_file()
+        if discovered is not None:
+            paths.append(discovered)
+
+    for path in paths:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            key, _, _value = stripped.partition("=")
+            key = key.strip()
+            if key in names:
+                return True
     return False
 
 
@@ -407,7 +432,7 @@ class Settings(BaseSettings):
                 "SPLUNK_O11Y_REALM": self.splunk_o11y_realm,
                 "SPLUNK_O11Y_API_TOKEN": self.splunk_o11y_api_token,
             }
-            if not _env_toggle_explicitly_off("ENABLE_SPLUNK_O11Y", "enable_splunk_o11y") and all(
+            if not _env_var_configured("ENABLE_SPLUNK_O11Y", "enable_splunk_o11y") and all(
                 o11y_credentials.values()
             ):
                 self.enable_splunk_o11y = True
@@ -418,7 +443,7 @@ class Settings(BaseSettings):
                 "SPLUNK_CLOUD_MCP_BEARER_TOKEN": self.splunk_cloud_mcp_bearer_token,
             },
         )
-        if not self.enable_splunk_cloud_mcp and not _env_toggle_explicitly_off(
+        if not self.enable_splunk_cloud_mcp and not _env_var_configured(
             "ENABLE_SPLUNK_CLOUD_MCP",
             "enable_splunk_cloud_mcp",
         ):

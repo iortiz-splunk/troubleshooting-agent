@@ -85,6 +85,12 @@ def run_mcp_doctor() -> None:
     if settings.enable_splunk_mcp:
         enabled.append("enterprise")
     typer.echo(f"MCP integrations enabled: {', '.join(enabled)}")
+    typer.echo(
+        "Feature flags: "
+        f"ENABLE_SPLUNK_O11Y={settings.enable_splunk_o11y}, "
+        f"ENABLE_SPLUNK_CLOUD_MCP={settings.enable_splunk_cloud_mcp}, "
+        f"ENABLE_SPLUNK_MCP={settings.enable_splunk_mcp}"
+    )
     npx_error = npx_availability_error(settings)
     if npx_error:
         typer.echo(npx_error, err=True)
