@@ -165,7 +165,8 @@ The load runner simulates **N concurrent Part 3 APM investigations** (scripted M
 | Symptom | Check |
 |---------|--------|
 | `doctor` fails | Ollama running / `OPENAI_*` correct / Azure deployment name |
-| `mcp-doctor` fails | Gateway URL, realm, token; `npx` available |
+| `mcp-doctor` fails | Gateway URL, realm, token; `npx` available; read `→` hint lines under each FAILED server |
+| `Connection closed` on MCP | URL wrong, token expired, or missing `SPLUNK_CLOUD_MCP_TENANT` — `mcp-doctor` prints URL, credential status, HTTP probe, and mcp-remote stderr |
 | No o11y data in answers | `mcp-doctor` lists tools; model uses `params` object |
 | Slack listener silent | `slack-doctor`; channel name; alert is not resolved |
 | Galileo session name wrong | MCP pre-resolve sets `event_id` from `eventId` |
