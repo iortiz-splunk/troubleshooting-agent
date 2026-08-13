@@ -316,8 +316,9 @@ async def check_mcp_servers(settings: Settings) -> list[McpServerInfo]:
 
 def _format_mcp_error(exc: BaseException) -> str:
     """Unwrap TaskGroup/ExceptionGroup and add TLS hints when relevant."""
-    if isinstance(exc, BaseExceptionGroup):
-        messages = [_format_mcp_error(sub) for sub in exc.exceptions]
+    subs = getattr(exc, "exceptions", None)
+    if subs is not None and exc.__class__.__name__ in ("ExceptionGroup", "BaseExceptionGroup"):
+        messages = [_format_mcp_error(sub) for sub in subs]
         if len(messages) == 1:
             return messages[0]
         return f"{exc}: {'; '.join(messages)}"

@@ -13,10 +13,14 @@ from langgraph.errors import GraphRecursionError
 from part3_agent.graph import (
     LOG_SEARCH_SKILL,
     _alert_mcp_params,
+    _investigate_prompt,
     _investigate_user_content,
+    _log_search_hints,
     build_part3_graph,
 )
 from part3_agent.skill_tools import load_skill_content
+
+from langchain_core.tools import BaseTool, StructuredTool
 
 from workshop_shared.config import Settings
 
@@ -199,18 +203,35 @@ def test_alert_mcp_params_from_alert_and_metadata() -> None:
     assert params == {"service_name": "api", "environment_name": "staging"}
 
 
+def test_alert_mcp_params_uses_settings_default_environment() -> None:
+    settings = Settings(splunk_o11y_environment="workshop-default")
+    params = _alert_mcp_params(None, {}, settings=settings)
+    assert params == {"service_name": "", "environment_name": "workshop-default"}
+
+
 def test_investigate_user_content_includes_apm_hints() -> None:
     content = _investigate_user_content(
         user_text="investigate latency",
         alert={"sf_service": "Verification", "sf_environment": "Brian-E-AD-Capital"},
         investigation_metadata=None,
         product_type="apm",
+        splunk_available=True,
     )
     assert "params.service_name: Verification" in content
     assert "params.environment_name: Brian-E-AD-Capital" in content
     assert "lat_buck_" in content
     assert "splunk_run_query" in content
     assert "Splunk log search (REQUIRED" in content
+    assert "Exemplar trace analysis" in content
+    assert "exception.message" in content
+    assert "o11y_get_apm_trace_tool" in content
+
+
+def test_exemplar_trace_analysis_hints_only_for_apm() -> None:
+    from part3_agent.graph import _exemplar_trace_analysis_hints
+
+    assert "trace_id" in _exemplar_trace_analysis_hints("apm")
+    assert _exemplar_trace_analysis_hints("im") == ""
 
 
 def test_search_logs_skill_loads() -> None:
@@ -218,7 +239,7 @@ def test_search_logs_skill_loads() -> None:
     assert content is not None
     assert "splunk_run_query" in content
     assert "required before concluding" in content.lower()
-    assert "k8s-apps" in content or "catalog" in content.lower()
+    assert "splunk4rookies-workshop" in content or "catalog" in content.lower()
 
 
 def test_investigate_user_content_includes_index_catalog() -> None:
@@ -227,10 +248,139 @@ def test_investigate_user_content_includes_index_catalog() -> None:
         alert={"sf_service": "Verification", "sf_environment": "Brian-E-AD-Capital"},
         investigation_metadata=None,
         product_type="apm",
+        splunk_available=True,
     )
-    assert "k8s-apps" in content
+    assert "splunk4rookies-workshop" in content
     assert "Log index catalog" in content
     assert "index=main" not in content
+
+
+def test_investigate_user_content_uses_custom_index_from_settings() -> None:
+    settings = Settings(splunk_search_index="my-tenant-index")
+    content = _investigate_user_content(
+        user_text="investigate latency",
+        alert={"sf_service": "Verification", "sf_environment": "Brian-E-AD-Capital"},
+        investigation_metadata=None,
+        product_type="apm",
+        splunk_available=True,
+        settings=settings,
+    )
+    assert "my-tenant-index" in content
+    assert "splunk4rookies-workshop" not in content
+
+
+def test_investigate_user_content_skips_splunk_when_unavailable() -> None:
+    content = _investigate_user_content(
+        user_text="investigate errors",
+        alert={"sf_service": "payment", "sf_environment": "sre-agent-workshop"},
+        investigation_metadata=None,
+        product_type="apm",
+        splunk_available=False,
+    )
+    assert "Splunk MCP not connected" in content
+    assert "Splunk log search (REQUIRED" not in content
+    assert "splunk_run_query" not in content
+
+
+def test_log_search_hints_when_splunk_unavailable() -> None:
+    hints = _log_search_hints(None, None, "apm", splunk_available=False)
+    assert "not available" in hints
+    assert "Do **not** call splunk_*" in hints
+
+
+def test_investigate_prompt_skips_log_search_when_splunk_unavailable() -> None:
+    prompt = _investigate_prompt(
+        "Base.",
+        "troubleshoot-apm-incidents",
+        product_type="apm",
+        splunk_available=False,
+        log_search_skill="log playbook",
+    )
+    assert "skip log search entirely" in prompt
+    assert "log playbook" not in prompt
+
+
+def _fake_splunk_tool() -> BaseTool:
+    async def _run(**kwargs: object) -> str:
+        return "ok"
+
+    return StructuredTool.from_function(
+        coroutine=_run,
+        name="splunk_run_query",
+        description="Run SPL",
+    )
+
+
+@pytest.mark.asyncio
+async def test_investigate_subgraph_uses_tool_limits_when_splunk_connected() -> None:
+    settings = Settings()
+    llm = _FakeLLM()
+    apm_alert = {
+        "originatingMetric": "request.latency",
+        "customProperties": {"sf_service": "Verification"},
+    }
+
+    with (
+        patch("part3_agent.graph.fetch_alert_payload", new_callable=AsyncMock) as mock_fetch,
+        patch("part3_agent.graph.build_react_subgraph") as mock_react,
+    ):
+        mock_fetch.return_value = (apm_alert, None)
+        mock_subgraph = MagicMock()
+        mock_subgraph.compile.return_value.ainvoke = AsyncMock(
+            return_value={"messages": [AIMessage(content="done")]}
+        )
+        mock_react.return_value = mock_subgraph
+
+        graph = build_part3_graph(llm, [_fake_splunk_tool()], settings=settings, base_prompt="Base.")
+        app = graph.compile()
+        await app.ainvoke(
+            {
+                "user_message": "troubleshoot",
+                "investigation_metadata": {"service": "Verification"},
+                "skills_loaded": [],
+            }
+        )
+
+    investigate_call = mock_react.call_args_list[1]
+    assert investigate_call.kwargs.get("excluded_tool_names") is not None
+    assert investigate_call.kwargs.get("tool_call_limits") is not None
+    assert "Log search (required" in (investigate_call.kwargs.get("system_prompt") or "")
+
+
+@pytest.mark.asyncio
+async def test_investigate_subgraph_omits_search_logs_when_splunk_unavailable() -> None:
+    settings = Settings()
+    llm = _FakeLLM()
+    apm_alert = {
+        "originatingMetric": "request.error",
+        "customProperties": {"sf_service": "payment"},
+    }
+
+    with (
+        patch("part3_agent.graph.fetch_alert_payload", new_callable=AsyncMock) as mock_fetch,
+        patch("part3_agent.graph.build_react_subgraph") as mock_react,
+    ):
+        mock_fetch.return_value = (apm_alert, None)
+        mock_subgraph = MagicMock()
+        mock_subgraph.compile.return_value.ainvoke = AsyncMock(
+            return_value={"messages": [AIMessage(content="done")]}
+        )
+        mock_react.return_value = mock_subgraph
+
+        graph = build_part3_graph(llm, [], settings=settings, base_prompt="Base.")
+        app = graph.compile()
+        result = await app.ainvoke(
+            {
+                "user_message": "troubleshoot",
+                "investigation_metadata": {"service": "payment"},
+                "skills_loaded": [],
+            }
+        )
+
+    investigate_call = mock_react.call_args_list[1]
+    prompt = investigate_call.kwargs.get("system_prompt") or ""
+    assert "skip log search entirely" in prompt
+    assert LOG_SEARCH_SKILL not in (result.get("skills_loaded") or [])
 
 
 @pytest.mark.asyncio

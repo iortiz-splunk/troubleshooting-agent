@@ -2,7 +2,7 @@
 tenant: o11y-workshop-amer
 gateway_region: region-pdx10
 discovered_at: "2026-07-29"
-default_index: k8s-apps
+default_index: splunk4rookies-workshop
 service_aliases:
   payment: payment
   paymentservice: payment
@@ -24,10 +24,10 @@ do_not_use:
   - index: _introspection
     reason: Splunk introspection metrics — not application data
   - index: main
-    reason: Disabled in tenant listing; application logs are in k8s-apps
+    reason: Disabled in tenant listing; application logs are in splunk4rookies-workshop
 products:
   apm:
-    primary_index: k8s-apps
+    primary_index: splunk4rookies-workshop
     secondary_indexes:
       - splunk-arcade
     sourcetypes:
@@ -55,12 +55,12 @@ products:
       - quote
       - traefik
     example_spl: |
-      index=k8s-apps earliest=-1h latest=now
+      index=splunk4rookies-workshop earliest=-1h latest=now
       (sourcetype="kube:container:payment" OR sourcetype=httpevent)
       (severity=error OR http.resp.status>=400 OR _raw="*error*" OR _raw="*Invalid token*")
       | head 50
   im:
-    primary_index: k8s-apps
+    primary_index: splunk4rookies-workshop
     sourcetypes:
       - kube:events
       - "kube:container:*"
@@ -70,12 +70,12 @@ products:
       - "kube:events has pod restart/back-off messages (search _raw for pod name from alert)."
       - "Container logs use source paths like /var/log/pods/<namespace>_<pod>_<uid>/<container>/0.log."
     example_spl: |
-      index=k8s-apps earliest=-1h latest=now
+      index=splunk4rookies-workshop earliest=-1h latest=now
       (sourcetype=kube:events OR sourcetype="kube:container:*")
       _raw="*Back-off*" OR _raw="*Failed*"
       | head 50
   rum:
-    primary_index: k8s-apps
+    primary_index: splunk4rookies-workshop
     secondary_indexes:
       - splunk-arcade
     sourcetypes:
@@ -86,12 +86,12 @@ products:
       - "Backend API logs for RUM sessions often appear in httpevent or kube:container:frontend."
       - "Arcade demo uses index splunk-arcade with deployment.environment (e.g. gameify) in json logs."
     example_spl: |
-      index=k8s-apps earliest=-1h latest=now
+      index=splunk4rookies-workshop earliest=-1h latest=now
       (sourcetype=httpevent OR sourcetype="kube:container:frontend")
       (http.resp.status>=400 OR _raw="*error*")
       | head 50
   synthetics:
-    primary_index: k8s-apps
+    primary_index: splunk4rookies-workshop
     secondary_indexes:
       - splunk-arcade
     sourcetypes:
@@ -101,7 +101,7 @@ products:
       - "Search target path/host and 5xx during the check failure window."
       - "httpevent _raw includes Envoy-style access lines with status codes."
     example_spl: |
-      index=k8s-apps earliest=-1h latest=now
+      index=splunk4rookies-workshop earliest=-1h latest=now
       sourcetype=httpevent (status>=500 OR _raw="* 5*")
       | head 50
 ---
@@ -114,7 +114,7 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 
 | Setting | Value |
 |---------|-------|
-| **Default index** | `k8s-apps` |
+| **Default index** | `splunk4rookies-workshop` |
 | **Tenant** | `o11y-workshop-amer` |
 | **Last verified** | 2026-07-29 (Splunk Cloud MCP live probe) |
 
@@ -130,7 +130,7 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 
 | Index | Role | Top sourcetypes |
 |-------|------|-----------------|
-| `k8s-apps` | **Primary** — Hipster Shop / workshop K8s + HTTP | `httpevent` (~612k), `kube:container:*` |
+| `splunk4rookies-workshop` | **Primary** — Hipster Shop / workshop K8s + HTTP | `httpevent` (~612k), `kube:container:*` |
 | `splunk-arcade` | Arcade demo app | `json`, `arcade:app:logs`, `otel` |
 
 ## MCP tool shapes (Splunk Cloud)
@@ -139,7 +139,7 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 
 ```json
 {
-  "query": "index=k8s-apps sourcetype=\"kube:container:payment\" _raw=\"*error*\" | head 20",
+  "query": "index=splunk4rookies-workshop sourcetype=\"kube:container:payment\" _raw=\"*error*\" | head 20",
   "earliest_time": "-1h",
   "latest_time": "now",
   "row_limit": 50
@@ -153,7 +153,7 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 **`splunk_get_metadata`** — list sourcetypes when catalog is stale:
 
 ```json
-{"type": "sourcetypes", "index": "k8s-apps", "earliest_time": "-24h", "latest_time": "now", "row_limit": 100}
+{"type": "sourcetypes", "index": "splunk4rookies-workshop", "earliest_time": "-24h", "latest_time": "now", "row_limit": 100}
 ```
 
 ## Product → index / sourcetype
@@ -162,7 +162,7 @@ Facilitator-maintained reference from Splunk Cloud MCP discovery (`splunk_get_in
 
 | Index | Sourcetypes | Notes |
 |-------|-------------|-------|
-| `k8s-apps` | `httpevent`, `kube:container:*` | Start here for latency/error alerts |
+| `splunk4rookies-workshop` | `httpevent`, `kube:container:*` | Start here for latency/error alerts |
 | `splunk-arcade` | `json`, `otel` | Only when alert service matches arcade apps |
 
 **Service mapping:** APM `sf_service` often differs from container sourcetype. Use `service_aliases` in frontmatter or strip trailing `service`:
@@ -184,20 +184,20 @@ If zero rows on container sourcetype, search **`httpevent`** with `_raw="*<servi
 
 | Index | Sourcetypes | Notes |
 |-------|-------------|-------|
-| `k8s-apps` | `kube:events`, `kube:container:*`, `auth_log`, `syslog` | Pod restarts, back-off, node/auth issues |
+| `splunk4rookies-workshop` | `kube:events`, `kube:container:*`, `auth_log`, `syslog` | Pod restarts, back-off, node/auth issues |
 
 ### RUM
 
 | Index | Sourcetypes | Notes |
 |-------|-------------|-------|
-| `k8s-apps` | `httpevent`, `kube:container:frontend` | Backend correlated with RUM sessions |
+| `splunk4rookies-workshop` | `httpevent`, `kube:container:frontend` | Backend correlated with RUM sessions |
 | `splunk-arcade` | `json` | `deployment.environment`, `service.name`, `trace_id` in JSON |
 
 ### Synthetics
 
 | Index | Sourcetypes | Notes |
 |-------|-------------|-------|
-| `k8s-apps` | `httpevent`, `kube:container:*` | Target URL path + HTTP status during failure window |
+| `splunk4rookies-workshop` | `httpevent`, `kube:container:*` | Target URL path + HTTP status during failure window |
 
 ## Field hints (from sample events)
 
@@ -211,8 +211,8 @@ If zero rows on container sourcetype, search **`httpevent`** with `_raw="*<servi
 
 From a facilitator machine with AMER Splunk MCP connected:
 
-1. `splunk_get_metadata` with `type=sourcetypes`, `index=k8s-apps`, `earliest_time=-24h`.
-2. `splunk_run_query`: `index=k8s-apps earliest=-1h | stats count by sourcetype | sort - count`.
+1. `splunk_get_metadata` with `type=sourcetypes`, `index=splunk4rookies-workshop`, `earliest_time=-24h`.
+2. `splunk_run_query`: `index=splunk4rookies-workshop earliest=-1h | stats count by sourcetype | sort - count`.
 3. Probe APM service names: `sourcetype="kube:container:<name>"` vs `httpevent _raw="*<name>*"`.
 4. Update YAML frontmatter (`service_aliases`, `common_kube_containers`) and tables; run `pytest tests/part3/test_skill_tools.py`.
 

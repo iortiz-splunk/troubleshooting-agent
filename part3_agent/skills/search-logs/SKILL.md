@@ -35,7 +35,7 @@ If no Splunk platform MCP tools are bound (only `o11y_*`), skip this step and no
 
 ```json
 {
-  "query": "index=k8s-apps sourcetype=\"kube:container:payment\" (severity=error OR _raw=\"*error*\") | head 50",
+  "query": "index=splunk4rookies-workshop sourcetype=\"kube:container:payment\" (severity=error OR _raw=\"*error*\") | head 50",
   "earliest_time": "-1h",
   "latest_time": "now",
   "row_limit": 50
@@ -87,7 +87,7 @@ earliest=2026-07-30T14:17:20.000Z latest=2026-07-30T14:57:20.000Z
 
 ```json
 {
-  "query": "index=k8s-apps sourcetype=\"kube:container:payment\" _raw=\"*error*\" | head 50",
+  "query": "index=splunk4rookies-workshop sourcetype=\"kube:container:payment\" _raw=\"*error*\" | head 50",
   "earliest_time": "-1h",
   "latest_time": "now",
   "row_limit": 50
@@ -97,7 +97,7 @@ earliest=2026-07-30T14:17:20.000Z latest=2026-07-30T14:57:20.000Z
 **Alternative:** use the **same relative** bounds in both SPL and tool args:
 
 ```spl
-index=k8s-apps earliest=-1h latest=now sourcetype="kube:container:payment" | head 50
+index=splunk4rookies-workshop earliest=-1h latest=now sourcetype="kube:container:payment" | head 50
 ```
 
 **Alert timestamp handling:** use `anomaly_state_update_iso_8601_date_time` for **context in your summary only**. For log search, pick a relative window that covers the incident, e.g. `-1h`/`now` or `-40m`/`now` for a recent alert — **never paste the ISO string into SPL or `earliest_time`/`latest_time`**.
@@ -120,7 +120,7 @@ Combine with **`AND`**; start **narrow** (index + sourcetype + time), then widen
 
 **APM service errors (payment — time via tool args `-1h`/`now`):**
 ```spl
-index=k8s-apps
+index=splunk4rookies-workshop
 (sourcetype="kube:container:payment" OR sourcetype=httpevent)
 (severity=error OR http.resp.status>=400 OR _raw="*error*" OR _raw="*Invalid token*")
 | head 50
@@ -128,7 +128,7 @@ index=k8s-apps
 
 **Widen when container sourcetype returns zero rows:**
 ```spl
-index=k8s-apps
+index=splunk4rookies-workshop
 (sourcetype=httpevent OR sourcetype="kube:container:*")
 _raw="*payment*"
 | head 50
@@ -136,17 +136,17 @@ _raw="*payment*"
 
 **Trace ID from exemplar:**
 ```spl
-index=k8s-apps trace_id="<trace_id_from_apm>" | head 50
+index=splunk4rookies-workshop trace_id="<trace_id_from_apm>" | head 50
 ```
 
 **K8s pod restart (IM):**
 ```spl
-index=k8s-apps sourcetype=kube:events _raw="*<pod-name>*" | head 50
+index=splunk4rookies-workshop sourcetype=kube:events _raw="*<pod-name>*" | head 50
 ```
 
 **Quick volume check:**
 ```spl
-index=k8s-apps sourcetype=httpevent | stats count by sourcetype
+index=splunk4rookies-workshop sourcetype=httpevent | stats count by sourcetype
 ```
 
 ---

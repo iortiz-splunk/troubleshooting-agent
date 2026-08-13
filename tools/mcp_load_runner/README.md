@@ -19,7 +19,7 @@ Optional O11y step (enable in UI or `--include-exemplar-traces`):
 
 Optional Splunk Cloud step:
 
-6. `splunk_run_query` — searches `index=k8s-apps` for `_raw="*payment*"` by default
+6. `splunk_run_query` — searches `index=splunk4rookies-workshop` for `_raw="*payment*"` by default
 
 Defaults: APM service **`payment`**, environment **`sre-agent-workshop`**, exemplar type **`err`** when exemplars are enabled.
 

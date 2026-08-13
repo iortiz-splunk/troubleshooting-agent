@@ -19,6 +19,9 @@ Observability tools (when connected):
 - o11y_get_apm_exemplar_traces requires **params.exemplar_type** as one of exactly:
   ``req``, ``err``, ``rc_err``, or ``lat_buck_`` (latency alerts — note trailing underscore).
   Do not use values like ``latency``, ``lat_buck``, or ``lat_buck_99``.
+- When exemplars return ``trace_id`` values, call **o11y_get_apm_trace_tool** and analyze
+  error span **attributes** (``exception.message``, ``http.route``, ``code.function``,
+  ``service.name``) to name the failing component before concluding RCA.
 - After tool results arrive, summarize the actual JSON data for the user.
 - For APM alert search, use service_name with the exact service name.
   Do not split hyphenated names into separate keywords.

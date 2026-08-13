@@ -1,12 +1,12 @@
 ---
 title: "Configure Environment"
-description: "Install dependencies, personalize your Galileo settings, and verify everything is ready before Part 1."
+description: "Install dependencies, personalize your Agent Observability settings, and verify everything is ready before Part 1."
 weight: 5
 navTitle: "Configure Environment"
 duration: "10 minutes"
 ---
 
-Your workshop instance and credentials are already configured. Before Part 1, you will **install the agent dependencies** and **personalize your Galileo project name** so you can find your traces during the workshop.
+Your workshop instance and credentials are already configured. Before Part 1, you will **install the agent dependencies** and **personalize your Agent Observability project name** so you can find your traces during the workshop.
 
 ## Install dependencies
 
@@ -27,7 +27,7 @@ pip install -e . --no-deps
 {{% tab title="Example Output" %}}
 
 ```text
-Successfully installed langchain-1.3.14 galileo-2.5.1 ...
+Successfully installed langchain-1.3.14 ...
 Successfully installed troubleshooting-agent-0.1.0
 ```
 
@@ -38,9 +38,9 @@ Successfully installed troubleshooting-agent-0.1.0
 Run `source .venv/bin/activate` whenever you open a new SSH session. Your prompt should show `(.venv)` when the environment is active.
 {{< /notice >}}
 
-## Personalize your Galileo settings
+## Personalize your Agent Observability settings
 
-Create your `.env` file and set a **unique Galileo project name** so your agent runs are easy to find:
+Create your `.env` file and set a **unique Agent Observability project name** so your agent runs are easy to find:
 
 ```bash
 cd ~/troubleshooting-agent
@@ -64,16 +64,16 @@ GALILEO_LOG_STREAM="sre-agent-wkshp"
 ```
 
 {{< notice title="Tip" style="tip" >}}
-Use the same `GALILEO_PROJECT` across Parts 1–3 so all your investigations appear in one place.
+Use the same Agent Observability project across Parts 1–3 so all your investigations appear in one place.
 {{< /notice >}}
 
 Save and exit (`Ctrl + O`, `Enter`, `Ctrl + X` in nano). Your file should look similar to this:
 
-{{< diagram src="images/env-example.png" alt="Example .env file with ENABLE_GALILEO and personalized Galileo project name" >}}
+{{< diagram src="images/env-example.png" alt="Example .env file with Agent Observability enabled and a personalized project name" >}}
 
-## Splunk Agent Observability with Galileo
+## Splunk Agent Observability
 
-**Galileo** captures each agent investigation as a trace you can review in the browser:
+**Splunk Agent Observability** captures each agent investigation as a trace you can review in the browser:
 
 - Each **LLM turn** — what the model decided to do next
 - Each **tool call** — which MCP tools ran, with inputs and outputs
@@ -83,11 +83,11 @@ Save and exit (`Ctrl + O`, `Enter`, `Ctrl + X` in nano). Your file should look s
 |--------|-------|----------|
 | **Terminal trace** | CLI output during a run | Live narration |
 | **JSONL files** | `shared/logs/investigations/` | Review after a run |
-| **Galileo sessions** | Galileo console | Comparing runs across Parts 1–3 |
+| **Agent Observability sessions** | Splunk Agent Observability console | Comparing runs across Parts 1–3 |
 
-In **Part 1**, open **Agent Stream** in the Galileo console to see the ReAct loop — `Agent:agent` (LLM turns), `should_continue` (graph routing), and `tools` (MCP calls). Parts 2 and 3 add skills and named workflow nodes.
+In **Part 1**, open **Agent Stream** in the Splunk Agent Observability console to see the ReAct loop — `Agent:agent` (LLM turns), `should_continue` (graph routing), and `tools` (MCP calls). Parts 2 and 3 add skills and named workflow nodes.
 
-Each investigation creates a **session** named like `chat-abc123 | part1_agent` in your Galileo project (terminal IDs use `chat:`; Galileo session names use `chat-`).
+Each investigation creates a **session** named like `chat-abc123 | part1_agent` in your Agent Observability project (terminal IDs use `chat:`; session names in the console use `chat-`).
 
 ## Verify setup
 
@@ -142,4 +142,4 @@ Both commands should report **Ready** before you continue. If either fails, ask 
 
 ---
 
-**Next:** [Part 1 — Baseline Agent]({{< ref "6-part1-baseline-agent" >}}) — run your first investigation and review traces in the terminal and Galileo.
+**Next:** [Part 1 — Baseline Agent]({{< ref "6-part1-baseline-agent" >}}) — run your first investigation and review traces in the terminal and Splunk Agent Observability.

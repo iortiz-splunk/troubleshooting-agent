@@ -53,6 +53,7 @@ Grouped bullets; **only include URLs from tool responses or the user**—do not 
 - **Concise** bullets: main finding first.
 - Mark **Confirmed** vs **Likely / hypothesis** when evidence is incomplete.
 - Tie bullets to **evidence** (metric name, log pattern, trace id)—short, not a full dump.
+- When trace detail was analyzed, name the **failing component** (service + operation) and cite **span attributes** (e.g. `exception.message`, `http.route`, `code.function`) — quoted briefly from tool JSON.
 
 ### 7. Next steps
 

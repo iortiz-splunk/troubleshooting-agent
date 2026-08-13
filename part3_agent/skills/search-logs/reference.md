@@ -8,7 +8,7 @@ Tenant-specific **indexes and sourcetypes** live in [indexes.md](indexes.md) (YA
 
 | Field | Required | Example |
 |-------|----------|---------|
-| `query` | yes | `index=k8s-apps sourcetype="kube:container:payment" _raw="*error*" \| head 20` |
+| `query` | yes | `index=splunk4rookies-workshop sourcetype="kube:container:payment" _raw="*error*" \| head 20` |
 | `earliest_time` | no (default `-24h`) | `-1h`, `-30m`, `-40m` |
 | `latest_time` | no (default `now`) | `now` |
 | `row_limit` | no (default 100, max 1000) | `50` |
@@ -28,7 +28,7 @@ Tenant-specific **indexes and sourcetypes** live in [indexes.md](indexes.md) (YA
 
 ```json
 {
-  "query": "index=k8s-apps sourcetype=\"kube:container:payment\" | head 50",
+  "query": "index=splunk4rookies-workshop sourcetype=\"kube:container:payment\" | head 50",
   "earliest_time": "-1h",
   "latest_time": "now"
 }
@@ -38,7 +38,7 @@ Tenant-specific **indexes and sourcetypes** live in [indexes.md](indexes.md) (YA
 
 ```json
 {
-  "query": "index=k8s-apps earliest=2026-07-30T14:17:20.000Z latest=2026-07-30T14:57:20.000Z ...",
+  "query": "index=splunk4rookies-workshop earliest=2026-07-30T14:17:20.000Z latest=2026-07-30T14:57:20.000Z ...",
   "earliest_time": "2026-07-30T14:17:20.000Z",
   "latest_time": "2026-07-30T14:57:20.000Z"
 }
@@ -57,7 +57,7 @@ For a recent alert, use `-1h`/`now` or `-40m`/`now` instead of converting the al
       "sourcetype": "httpevent",
       "source": "kubernetes",
       "host": "k3d-shw-2cb1-cluster-agent-0",
-      "index": "k8s-apps"
+      "index": "splunk4rookies-workshop"
     }
   ],
   "total_rows": 1,
@@ -67,7 +67,7 @@ For a recent alert, use `-1h`/`now` or `-40m`/`now` instead of converting the al
 
 Zero hits: `{"results":[],"total_rows":0}` — not a failure; widen sourcetype or search `httpevent`.
 
-**Discovery fallback:** `splunk_get_metadata` with `{"type": "sourcetypes", "index": "k8s-apps", "earliest_time": "-24h"}`.
+**Discovery fallback:** `splunk_get_metadata` with `{"type": "sourcetypes", "index": "splunk4rookies-workshop", "earliest_time": "-24h"}`.
 
 ## Service name → sourcetype (workshop tenant)
 

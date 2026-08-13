@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -36,6 +38,7 @@ from workshop_shared.observability.logging_trace import (
 )
 from workshop_shared.observability.otel import span as otel_span
 from workshop_shared.tool_calls import ensure_ai_tool_calls
+from workshop_shared.workshop_targets import append_workshop_targets_prompt
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +64,69 @@ def _make_should_continue(tools_node_name: str):
     return should_continue
 
 
+def _build_limited_tool_node(
+    tools: list[BaseTool],
+    *,
+    excluded_tool_names: frozenset[str] | None = None,
+    tool_call_limits: dict[str, int] | None = None,
+    default_tool_limit: int = 1,
+) -> Callable[[AgentState], Awaitable[dict[str, list[BaseMessage]]]]:
+    """ToolNode wrapper that skips excluded tools and enforces per-tool call budgets."""
+    excluded = excluded_tool_names or frozenset()
+    limits = tool_call_limits or {}
+    tool_node = ToolNode(tools)
+    call_counts: dict[str, int] = {}
+
+    async def limited_tools(state: AgentState) -> dict[str, list[BaseMessage]]:
+        messages = state["messages"]
+        last = messages[-1] if messages else None
+        if not isinstance(last, AIMessage) or not last.tool_calls:
+            return {"messages": []}
+
+        allowed_calls: list[dict[str, Any]] = []
+        result_messages: list[BaseMessage] = []
+        for tc in last.tool_calls:
+            if not isinstance(tc, dict):
+                continue
+            name = str(tc.get("name", ""))
+            tc_id = str(tc.get("id") or f"call_{uuid.uuid4().hex[:8]}")
+            if name in excluded:
+                result_messages.append(
+                    ToolMessage(
+                        content=(
+                            f"SKIPPED: {name} is not used in this workflow step. "
+                            "Alert context was already resolved in identify."
+                        ),
+                        tool_call_id=tc_id,
+                    )
+                )
+                continue
+            limit = limits.get(name, default_tool_limit)
+            prior = call_counts.get(name, 0)
+            if prior >= limit:
+                result_messages.append(
+                    ToolMessage(
+                        content=(
+                            f"SKIPPED: {name} already called {prior} time(s) "
+                            f"(limit {limit}). Use prior tool results and summarize."
+                        ),
+                        tool_call_id=tc_id,
+                    )
+                )
+                continue
+            allowed_calls.append({**tc, "id": tc_id})
+            call_counts[name] = prior + 1
+
+        if allowed_calls:
+            filtered_ai = AIMessage(content=last.content, tool_calls=allowed_calls)
+            sub_result = await tool_node.ainvoke({"messages": [filtered_ai]})
+            result_messages.extend(sub_result.get("messages", []))
+
+        return {"messages": result_messages}
+
+    return limited_tools
+
+
 # ---------------------------------------------------------------------------
 # LangGraph ReAct loop
 # agent node (LLM) -> tools node -> agent until the model stops calling tools.
@@ -73,6 +139,9 @@ def build_react_subgraph(
     system_prompt: str = SYSTEM_PROMPT,
     llm_node_name: str = "agent",
     tools_node_name: str = "tools",
+    excluded_tool_names: frozenset[str] | None = None,
+    tool_call_limits: dict[str, int] | None = None,
+    default_tool_limit: int = 1,
 ) -> StateGraph[AgentState, None, AgentState, AgentState]:
     """Build a ReAct loop with configurable node names for nested tracing."""
     tools_by_name = {t.name: t for t in tools}
@@ -83,7 +152,17 @@ def build_react_subgraph(
         model = llm
         model_force_tools = None
 
-    tool_node = ToolNode(tools) if tools else None
+    if tools and (excluded_tool_names or tool_call_limits):
+        tool_node: ToolNode | Callable[..., Awaitable[dict[str, list[BaseMessage]]]] = (
+            _build_limited_tool_node(
+                tools,
+                excluded_tool_names=excluded_tool_names,
+                tool_call_limits=tool_call_limits,
+                default_tool_limit=default_tool_limit,
+            )
+        )
+    else:
+        tool_node = ToolNode(tools) if tools else None
 
     async def call_model(state: AgentState) -> dict[str, list[BaseMessage]]:
         messages = list(state["messages"])
@@ -358,7 +437,8 @@ async def _invoke_agent(
         log_skill_injected(skill_name=skill_name)
 
     llm = build_llm(settings)
-    graph = build_agent_graph(llm, tools, system_prompt=system_prompt)
+    effective_prompt = append_workshop_targets_prompt(system_prompt, settings)
+    graph = build_agent_graph(llm, tools, system_prompt=effective_prompt)
     app = graph.compile()
     config, galileo_session = _build_runnable_config(
         settings,

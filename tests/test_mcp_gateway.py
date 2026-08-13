@@ -12,7 +12,7 @@ from workshop_shared.mcp.gateway import (
 
 def test_o11y_gateway_params() -> None:
     settings = Settings(
-        splunk_o11y_gateway_url="https://example.com/mcp-gateway/v1/",
+        splunk_o11y_gateway_url="https://example.com:8089/services/mcp",
         splunk_o11y_realm="us1",
         splunk_o11y_api_token="test-token",
     )
@@ -28,7 +28,7 @@ def test_o11y_gateway_params() -> None:
 
 def test_splunk_cloud_mcp_params() -> None:
     settings = Settings(
-        splunk_cloud_mcp_url="https://example.com/mcp-gateway/v1/",
+        splunk_cloud_mcp_url="https://example.com:8089/services/mcp",
         splunk_cloud_mcp_bearer_token="jwt-bearer",
         splunk_cloud_mcp_tenant="my-tenant",
     )

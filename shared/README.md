@@ -42,6 +42,8 @@ Provider auto-detection: if `OPENAI_API_KEY` and `OPENAI_BASE_URL` are set, `ope
 | `SPLUNK_O11Y_REALM` | Observability realm (e.g. `us1`) |
 | `SPLUNK_O11Y_API_TOKEN` | Observability API token (`X-SF-TOKEN`) |
 | `SPLUNK_O11Y_TOOL_PREFIX` | Default `o11y_` |
+| `SPLUNK_O11Y_ENVIRONMENT` | Default APM environment for `o11y_get_apm_*` when alert/metadata omit `sf_environment` (default: `sre-agent-workshop`) |
+| `SPLUNK_SEARCH_INDEX` | Default Splunk index for `splunk_run_query` (default: `splunk4rookies-workshop`) |
 
 Auth uses `X-SF-REALM` + `X-SF-TOKEN` (not Splunk Cloud Bearer).
 
@@ -125,6 +127,8 @@ When trace is on, `troubleshooting-agent chat` prints the response in the log bl
 2. Ensure Node.js **20** and `npx` are on your PATH (`mcp-remote` requires Node 18+; Ubuntu `apt install nodejs` often ships Node 12). Facilitators: run `scripts/workshop-instance-setup.sh` on each EC2 instance.
 3. Run `mcp-doctor` — expect `OK` and a list of `o11y_*` tools.
 4. Test: `cd part1_agent && troubleshooting-agent chat "List APM environments"`.
+
+**MCP URL paths:** You can set `SPLUNK_CLOUD_MCP_URL` and `SPLUNK_O11Y_GATEWAY_URL` to the hostname only (e.g. `https://mcp-shw-60c529e5624115.stg.splunkcloud.com`). The agent appends `:8089/services/mcp` when that path is missing.
 
 MCP tools expect a `params` object. For time windows use:
 

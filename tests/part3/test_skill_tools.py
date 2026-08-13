@@ -46,7 +46,7 @@ def test_load_log_index_catalog_parses_frontmatter() -> None:
     catalog = load_log_index_catalog(catalog_path=LOG_INDEX_CATALOG_PATH)
     assert catalog is not None
     assert catalog.get("tenant") == "o11y-workshop-amer"
-    assert catalog.get("default_index") == "k8s-apps"
+    assert catalog.get("default_index") == "splunk4rookies-workshop"
     products = catalog.get("products")
     assert isinstance(products, dict)
     assert "apm" in products
@@ -57,7 +57,7 @@ def test_format_log_index_catalog_for_apm() -> None:
         "apm",
         service_name="Verification",
     )
-    assert "k8s-apps" in text
+    assert "splunk4rookies-workshop" in text
     assert "kube:container:verification" in text
     assert "_internal" in text
     assert "do not search" in text
@@ -87,4 +87,15 @@ def test_resolve_kube_container_name() -> None:
 def test_format_log_index_catalog_unknown_product_uses_defaults() -> None:
     catalog = load_log_index_catalog(catalog_path=LOG_INDEX_CATALOG_PATH)
     text = format_log_index_catalog_for_product("unknown", catalog=catalog)
-    assert "k8s-apps" in text or text == ""
+    assert "splunk4rookies-workshop" in text
+
+
+def test_format_log_index_catalog_honors_index_override() -> None:
+    catalog = load_log_index_catalog(catalog_path=LOG_INDEX_CATALOG_PATH)
+    text = format_log_index_catalog_for_product(
+        "apm",
+        catalog=catalog,
+        index_override="my-custom-index",
+    )
+    assert "default index: my-custom-index" in text
+    assert "splunk4rookies-workshop" not in text or text == ""

@@ -22,10 +22,10 @@ from mcp_load_runner.metrics import (
 from mcp_load_runner.participant import build_steps_for_context, run_one_participant
 from mcp_load_runner.scenarios import (
     DEFAULT_APM_SERVICE_NAME,
-    DEFAULT_ENVIRONMENT_NAME,
     DEFAULT_EXEMPLAR_TYPE,
     DEFAULT_SPLUNK_LOG_SERVICE,
     ScenarioContext,
+    _default_environment_name,
 )
 from mcp_load_runner.servers import McpServerSelection, apply_server_selection
 
@@ -40,7 +40,7 @@ class LoadTestConfig:
     ramp_up_seconds: float = 0.0
     service_name: str = DEFAULT_APM_SERVICE_NAME
     splunk_log_service: str = DEFAULT_SPLUNK_LOG_SERVICE
-    environment_name: str = DEFAULT_ENVIRONMENT_NAME
+    environment_name: str = field(default_factory=_default_environment_name)
     call_timeout_seconds: float = 60.0
     stop_on_first_error: bool = False
     include_exemplar_traces: bool = False

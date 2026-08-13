@@ -13,6 +13,8 @@ def test_settings_defaults() -> None:
     assert settings.llm_temperature == 0.2
     assert settings.enable_splunk_o11y is False
     assert settings.splunk_o11y_tool_prefix == "o11y_"
+    assert settings.splunk_o11y_environment == "sre-agent-workshop"
+    assert settings.splunk_search_index == "splunk4rookies-workshop"
     assert settings.agent_log_dir == default_agent_log_dir()
     assert settings.agent_log_dir.endswith("shared/logs/investigations")
 
