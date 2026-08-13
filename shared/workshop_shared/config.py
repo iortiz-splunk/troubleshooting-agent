@@ -8,7 +8,6 @@ from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 from workshop_shared.mcp_urls import (
-    align_o11y_gateway_url_with_cloud_mcp,
     normalize_splunk_cloud_mcp_url,
     normalize_splunk_enterprise_mcp_url,
     normalize_splunk_o11y_gateway_url,
@@ -184,7 +183,10 @@ class Settings(BaseSettings):
     )
     splunk_o11y_gateway_url: str | None = Field(
         default=None,
-        description="Splunk MCP server URL for Observability tools (https://host:8089/services/mcp)",
+        description=(
+            "Observability API gateway URL "
+            "(https://region-*.api.scs.splunk.com/system/mcp-gateway/v1/)"
+        ),
     )
     splunk_o11y_realm: str | None = Field(default=None, description="Observability realm, e.g. us1")
     splunk_o11y_api_token: str | None = Field(
@@ -366,13 +368,6 @@ class Settings(BaseSettings):
         self.splunk_o11y_gateway_url = normalize_splunk_o11y_gateway_url(self.splunk_o11y_gateway_url)
         self.splunk_cloud_mcp_url = normalize_splunk_cloud_mcp_url(self.splunk_cloud_mcp_url)
         self.splunk_mcp_url = normalize_splunk_enterprise_mcp_url(self.splunk_mcp_url)
-        cloud_url_for_o11y = self.splunk_cloud_mcp_url or normalize_splunk_cloud_mcp_url(
-            os.environ.get("SPLUNK_CLOUD_MCP_URL"),
-        )
-        self.splunk_o11y_gateway_url = align_o11y_gateway_url_with_cloud_mcp(
-            self.splunk_o11y_gateway_url,
-            cloud_url_for_o11y,
-        )
 
         if self.llm_provider is None:
             if self.openai_api_key and self.openai_base_url:

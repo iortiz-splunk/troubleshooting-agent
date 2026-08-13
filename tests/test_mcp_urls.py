@@ -2,9 +2,10 @@
 
 from workshop_shared.config import Settings
 from workshop_shared.mcp_urls import (
-    align_o11y_gateway_url_with_cloud_mcp,
-    is_legacy_splunk_cloud_api_gateway_host,
+    is_direct_splunk_mcp_server_host,
+    is_splunk_cloud_api_gateway_host,
     normalize_splunk_mcp_server_url,
+    normalize_splunk_o11y_gateway_url,
 )
 
 
@@ -27,14 +28,42 @@ def test_normalize_mcp_url_leaves_complete_url() -> None:
     assert normalize_splunk_mcp_server_url(url) == url
 
 
-def test_normalize_mcp_url_rewrites_legacy_gateway_path() -> None:
+def test_normalize_mcp_url_rewrites_legacy_gateway_path_on_direct_host() -> None:
     assert (
-        normalize_splunk_mcp_server_url("https://region-pdx10.api.scs.splunk.com/system/mcp-gateway/v1/")
-        == "https://region-pdx10.api.scs.splunk.com:8089/services/mcp"
+        normalize_splunk_mcp_server_url(
+            "https://mcp-shw-60c529e5624115.stg.splunkcloud.com/system/mcp-gateway/v1/"
+        )
+        == "https://mcp-shw-60c529e5624115.stg.splunkcloud.com:8089/services/mcp"
     )
 
 
-def test_settings_normalizes_cloud_and_o11y_urls() -> None:
+def test_normalize_o11y_gateway_url_appends_gateway_path() -> None:
+    assert (
+        normalize_splunk_o11y_gateway_url("https://region-pdx10.api.scs.splunk.com")
+        == "https://region-pdx10.api.scs.splunk.com/system/mcp-gateway/v1/"
+    )
+
+
+def test_normalize_o11y_gateway_url_leaves_gateway_path() -> None:
+    url = "https://region-pdx10.api.scs.splunk.com/system/mcp-gateway/v1/"
+    assert normalize_splunk_o11y_gateway_url(url) == url
+
+
+def test_normalize_o11y_gateway_url_does_not_rewrite_direct_mcp_host() -> None:
+    url = "https://mcp-shw-60c529e5624115.stg.splunkcloud.com:8089/services/mcp"
+    assert normalize_splunk_o11y_gateway_url(url) == url
+
+
+def test_normalize_o11y_gateway_url_fixes_api_scs_direct_path() -> None:
+    assert (
+        normalize_splunk_o11y_gateway_url(
+            "https://region-pdx10.api.scs.splunk.com:8089/services/mcp"
+        )
+        == "https://region-pdx10.api.scs.splunk.com/system/mcp-gateway/v1/"
+    )
+
+
+def test_settings_normalizes_cloud_mcp_url() -> None:
     host = "https://mcp-shw-60c529e5624115.stg.splunkcloud.com"
     expected = f"{host}:8089/services/mcp"
 
@@ -45,29 +74,8 @@ def test_settings_normalizes_cloud_and_o11y_urls() -> None:
     )
     assert cloud.splunk_cloud_mcp_url == expected
 
-    o11y = Settings(
-        splunk_o11y_gateway_url=host,
-        splunk_o11y_realm="us1",
-        splunk_o11y_api_token="token",
-    )
-    assert o11y.splunk_o11y_gateway_url == expected
-    assert o11y.enable_splunk_o11y is True
 
-
-def test_legacy_o11y_gateway_host_detection() -> None:
-    assert is_legacy_splunk_cloud_api_gateway_host("https://region-pdx10.api.scs.splunk.com")
-    assert not is_legacy_splunk_cloud_api_gateway_host(
-        "https://mcp-shw-60c529e5624115.stg.splunkcloud.com:8089/services/mcp"
-    )
-
-
-def test_align_o11y_gateway_uses_cloud_mcp_server() -> None:
-    cloud = "https://mcp-shw-60c529e5624115.stg.splunkcloud.com:8089/services/mcp"
-    legacy = "https://region-pdx10.api.scs.splunk.com:8089/services/mcp"
-    assert align_o11y_gateway_url_with_cloud_mcp(legacy, cloud) == cloud
-
-
-def test_settings_aligns_legacy_o11y_url_with_cloud_mcp() -> None:
+def test_settings_normalizes_o11y_gateway_url_separately() -> None:
     settings = Settings(
         splunk_o11y_gateway_url="https://region-pdx10.api.scs.splunk.com",
         splunk_o11y_realm="us1",
@@ -76,6 +84,20 @@ def test_settings_aligns_legacy_o11y_url_with_cloud_mcp() -> None:
         splunk_cloud_mcp_bearer_token="bearer",
     )
     assert settings.splunk_o11y_gateway_url == (
+        "https://region-pdx10.api.scs.splunk.com/system/mcp-gateway/v1/"
+    )
+    assert settings.splunk_cloud_mcp_url == (
         "https://mcp-shw-60c529e5624115.stg.splunkcloud.com:8089/services/mcp"
     )
-    assert settings.splunk_cloud_mcp_url == settings.splunk_o11y_gateway_url
+    assert settings.splunk_o11y_gateway_url != settings.splunk_cloud_mcp_url
+    assert settings.enable_splunk_o11y is True
+
+
+def test_gateway_host_detection() -> None:
+    assert is_splunk_cloud_api_gateway_host("https://region-pdx10.api.scs.splunk.com")
+    assert is_direct_splunk_mcp_server_host(
+        "https://mcp-shw-60c529e5624115.stg.splunkcloud.com:8089/services/mcp"
+    )
+    assert not is_splunk_cloud_api_gateway_host(
+        "https://mcp-shw-60c529e5624115.stg.splunkcloud.com:8089/services/mcp"
+    )

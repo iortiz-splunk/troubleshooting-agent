@@ -10,7 +10,10 @@ import urllib.error
 import urllib.request
 from typing import TYPE_CHECKING
 
-from workshop_shared.mcp_urls import is_legacy_splunk_cloud_api_gateway_host
+from workshop_shared.mcp_urls import (
+    is_direct_splunk_mcp_server_host,
+    is_splunk_cloud_api_gateway_host,
+)
 
 if TYPE_CHECKING:
     from mcp import StdioServerParameters
@@ -129,15 +132,24 @@ def hints_for_mcp_error(
             )
         if server_name == "splunk_o11y":
             url = extract_mcp_remote_url(params.args)
-            if is_legacy_splunk_cloud_api_gateway_host(url):
+            cloud_url = settings.splunk_cloud_mcp_url or os.environ.get("SPLUNK_CLOUD_MCP_URL")
+            if url and cloud_url and url.split("?", 1)[0] == cloud_url.split("?", 1)[0]:
                 hints.append(
-                    "SPLUNK_O11Y_GATEWAY_URL uses legacy region-*.api.scs.splunk.com — "
-                    "set it to the direct MCP server (same host as SPLUNK_CLOUD_MCP_URL): "
-                    "https://mcp-<instance>.stg.splunkcloud.com:8089/services/mcp"
+                    "SPLUNK_O11Y_GATEWAY_URL matches SPLUNK_CLOUD_MCP_URL — O11y must use the "
+                    "Observability API gateway (region-*.api.scs.splunk.com/system/mcp-gateway/v1/), "
+                    "not the direct MCP server URL."
                 )
-                cloud_url = settings.splunk_cloud_mcp_url or os.environ.get("SPLUNK_CLOUD_MCP_URL")
-                if cloud_url:
-                    hints.append(f"Try: export SPLUNK_O11Y_GATEWAY_URL={cloud_url.split('?', 1)[0]}")
+            elif url and is_direct_splunk_mcp_server_host(url):
+                hints.append(
+                    "SPLUNK_O11Y_GATEWAY_URL points at mcp-*.stg.splunkcloud.com — use the "
+                    "Observability gateway instead: "
+                    "https://region-<region>.api.scs.splunk.com/system/mcp-gateway/v1/"
+                )
+            elif url and not is_splunk_cloud_api_gateway_host(url):
+                hints.append(
+                    "SPLUNK_O11Y_GATEWAY_URL should target region-*.api.scs.splunk.com "
+                    "with path /system/mcp-gateway/v1/ (X-SF-REALM + X-SF-TOKEN auth)."
+                )
 
     url = extract_mcp_remote_url(params.args)
     if url:

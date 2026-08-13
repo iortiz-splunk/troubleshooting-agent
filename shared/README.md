@@ -38,7 +38,7 @@ Provider auto-detection: if `OPENAI_API_KEY` and `OPENAI_BASE_URL` are set, `ope
 | Variable | Description |
 |----------|-------------|
 | `ENABLE_SPLUNK_O11Y` | `true` to enable |
-| `SPLUNK_O11Y_GATEWAY_URL` | Splunk Cloud MCP gateway URL |
+| `SPLUNK_O11Y_GATEWAY_URL` | Observability API gateway (`https://region-<region>.api.scs.splunk.com/system/mcp-gateway/v1/`) |
 | `SPLUNK_O11Y_REALM` | Observability realm (e.g. `us1`) |
 | `SPLUNK_O11Y_API_TOKEN` | Observability API token (`X-SF-TOKEN`) |
 | `SPLUNK_O11Y_TOOL_PREFIX` | Default `o11y_` |
@@ -128,7 +128,14 @@ When trace is on, `troubleshooting-agent chat` prints the response in the log bl
 3. Run `mcp-doctor` — expect `OK` and a list of `o11y_*` tools.
 4. Test: `cd part1_agent && troubleshooting-agent chat "List APM environments"`.
 
-**MCP URL paths:** Set `SPLUNK_CLOUD_MCP_URL` and `SPLUNK_O11Y_GATEWAY_URL` to the direct MCP server (`https://mcp-<instance>.stg.splunkcloud.com:8089/services/mcp`). Host-only values get `:8089/services/mcp` appended. If o11y still uses legacy `region-*.api.scs.splunk.com`, the agent reuses the Cloud MCP URL automatically.
+**MCP URL paths:** These are **different endpoints**:
+
+| Integration | Variable | URL shape |
+|-------------|----------|-----------|
+| Observability (o11y) | `SPLUNK_O11Y_GATEWAY_URL` | `https://region-<region>.api.scs.splunk.com/system/mcp-gateway/v1/` |
+| Splunk Cloud MCP | `SPLUNK_CLOUD_MCP_URL` | `https://mcp-<instance>.stg.splunkcloud.com:8089/services/mcp` |
+
+Host-only Cloud MCP values get `:8089/services/mcp` appended. Host-only O11y gateway values get `/system/mcp-gateway/v1/` appended.
 
 MCP tools expect a `params` object. For time windows use:
 

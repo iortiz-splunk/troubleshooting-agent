@@ -45,9 +45,10 @@ def _stdio_params(settings: Settings, args: list[str]) -> StdioServerParameters:
 
 def splunk_o11y_gateway_params(settings: Settings) -> StdioServerParameters:
     """
-    Splunk Observability Cloud via the Splunk Cloud MCP gateway.
+    Splunk Observability Cloud via the Splunk Cloud API gateway.
 
-    Requires only Observability credentials: X-SF-REALM and X-SF-TOKEN.
+    Uses SPLUNK_O11Y_GATEWAY_URL (region-*.api.scs.splunk.com/system/mcp-gateway/v1/)
+    with X-SF-REALM and X-SF-TOKEN — not the direct MCP server URL used for Cloud MCP.
     """
     if not settings.splunk_o11y_gateway_url:
         msg = "SPLUNK_O11Y_GATEWAY_URL is required"

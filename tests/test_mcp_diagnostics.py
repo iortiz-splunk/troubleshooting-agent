@@ -88,17 +88,17 @@ def test_cloud_mcp_hints_flag_missing_tenant() -> None:
     assert any("splunk_tenant header" in h for h in hints)
 
 
-def test_o11y_hints_call_out_legacy_gateway_host() -> None:
-    legacy_url = "https://region-pdx10.api.scs.splunk.com:8089/services/mcp"
+def test_o11y_hints_call_out_direct_mcp_url_mismatch() -> None:
+    direct_url = "https://mcp-shw-abc.stg.splunkcloud.com:8089/services/mcp"
     settings = Settings(
-        splunk_o11y_gateway_url=legacy_url,
+        splunk_o11y_gateway_url=direct_url,
         splunk_o11y_realm="us1",
         splunk_o11y_api_token="abc123",
-        splunk_cloud_mcp_url="https://mcp-shw-abc.stg.splunkcloud.com:8089/services/mcp",
+        splunk_cloud_mcp_url=direct_url,
     )
     params = StdioServerParameters(
         command="npx",
-        args=["-y", "mcp-remote", legacy_url, "--silent"],
+        args=["-y", "mcp-remote", direct_url, "--silent"],
     )
     hints = hints_for_mcp_error(
         "Connection closed",
@@ -106,8 +106,7 @@ def test_o11y_hints_call_out_legacy_gateway_host() -> None:
         settings=settings,
         params=params,
     )
-    assert any("legacy region-*.api.scs.splunk.com" in h for h in hints)
-    assert any("export SPLUNK_O11Y_GATEWAY_URL=" in h for h in hints)
+    assert any("matches SPLUNK_CLOUD_MCP_URL" in h for h in hints)
 
 
 def test_build_server_context_hints_o11y() -> None:
