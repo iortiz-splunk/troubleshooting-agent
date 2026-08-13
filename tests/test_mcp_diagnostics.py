@@ -1,10 +1,15 @@
 """Tests for MCP doctor diagnostics."""
 
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from mcp import StdioServerParameters
 
 from workshop_shared.config import Settings
 from workshop_shared.mcp.diagnostics import (
     build_server_context_hints,
+    capture_mcp_remote_stderr,
     extract_mcp_remote_url,
     format_mcp_remote_command,
     hints_for_mcp_error,
@@ -92,3 +97,25 @@ def test_build_server_context_hints_o11y() -> None:
     params = StdioServerParameters(command="npx", args=["-y", "mcp-remote", "https://mcp.example:8089/services/mcp"])
     hints = build_server_context_hints("splunk_o11y", settings, params)
     assert hints[0].startswith("URL:")
+
+
+@pytest.mark.asyncio
+async def test_capture_mcp_remote_stderr_timeout_returns_hint() -> None:
+    params = StdioServerParameters(command="npx", args=["-y", "mcp-remote", "https://example.com:8089/services/mcp"])
+    fake_proc = AsyncMock()
+    fake_proc.communicate = AsyncMock(return_value=(b"", b""))
+    fake_proc.kill = MagicMock()
+    fake_proc.wait = AsyncMock(return_value=0)
+
+    async def raise_timeout(*_args: object, **_kwargs: object) -> object:
+        raise asyncio.TimeoutError
+
+    with (
+        patch("workshop_shared.mcp.diagnostics.asyncio.create_subprocess_exec", return_value=fake_proc),
+        patch("workshop_shared.mcp.diagnostics.asyncio.wait_for", side_effect=raise_timeout),
+    ):
+        message = await capture_mcp_remote_stderr(params, timeout_seconds=1.0)
+
+    assert message is not None
+    assert "did not exit" in message
+    fake_proc.kill.assert_called_once()

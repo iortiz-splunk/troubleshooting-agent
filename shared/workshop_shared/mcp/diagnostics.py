@@ -158,30 +158,49 @@ def probe_mcp_url_reachability(url: str, settings: Settings) -> str | None:
 async def capture_mcp_remote_stderr(
     params: StdioServerParameters,
     *,
-    timeout_seconds: float = 8.0,
+    timeout_seconds: float = 5.0,
 ) -> str | None:
     """
     Run mcp-remote once and return stderr (excluding Node TLS warnings).
 
-    Used when the MCP client only reports 'Connection closed'.
+    Used when the MCP client only reports 'Connection closed'. mcp-remote often
+    stays alive waiting for stdio — treat a timeout as a diagnostic result, not
+    a fatal error.
     """
     env = os.environ.copy()
     if params.env:
         env.update(params.env)
 
-    proc = await asyncio.create_subprocess_exec(
-        params.command,
-        *params.args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        env=env,
-    )
     try:
-        _, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
-    except TimeoutError:
-        proc.kill()
-        await proc.communicate()
-        return "mcp-remote did not exit within 8s (stdio waiting — URL may be reachable)"
+        proc = await asyncio.create_subprocess_exec(
+            params.command,
+            *params.args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+    except OSError as exc:
+        return f"could not run mcp-remote: {exc}"
+
+    try:
+        try:
+            _, stderr_bytes = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=2.0)
+            except asyncio.TimeoutError:
+                pass
+            seconds = int(timeout_seconds)
+            return (
+                f"mcp-remote did not exit within {seconds}s "
+                "(process waiting on stdio — URL may be reachable; check auth token/tenant)"
+            )
+    except OSError as exc:
+        return f"mcp-remote probe failed: {exc}"
 
     stderr = stderr_bytes.decode(errors="replace").strip()
     if not stderr:

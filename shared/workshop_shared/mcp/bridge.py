@@ -373,7 +373,10 @@ async def _check_server(
         error = _format_mcp_error(exc)
         hints = list(hints_for_mcp_error(error, server_name=name, settings=settings, params=params))
         if "connection closed" in error.lower():
-            stderr = await capture_mcp_remote_stderr(params)
+            try:
+                stderr = await capture_mcp_remote_stderr(params)
+            except Exception:
+                stderr = None
             if stderr:
                 hints.append(f"mcp-remote stderr: {stderr}")
         return McpServerInfo(
