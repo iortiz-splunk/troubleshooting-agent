@@ -32,6 +32,7 @@ from workshop_shared.observability.logging_trace import (
 from workshop_shared.observability.otel import span as otel_span
 from workshop_shared.slack.messages import parse_o11y_alert_context
 from workshop_shared.tools.base import get_tools
+from workshop_shared.workshop_targets import append_workshop_targets_prompt
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +157,7 @@ async def _invoke_agent(
         investigation_metadata,
         alert_text,
     )
+    base_prompt = append_workshop_targets_prompt(base_prompt, settings)
 
     enriched_metadata = dict(investigation_metadata) if investigation_metadata else {}
     enriched_metadata["workshop_part"] = "part3_agent"

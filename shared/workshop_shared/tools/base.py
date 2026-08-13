@@ -11,6 +11,11 @@ from workshop_shared.tools import builtin
 # Tool aggregation
 # Built-ins always included; MCP tools passed in from McpSessionManager at runtime.
 # ---------------------------------------------------------------------------
+def has_splunk_mcp_tools(tools: Sequence[BaseTool]) -> bool:
+    """True when Splunk platform MCP tools (splunk_*) are bound for this run."""
+    return any(tool.name.startswith("splunk_") for tool in tools)
+
+
 def get_tools(
     settings: Settings,
     *,

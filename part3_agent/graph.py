@@ -38,12 +38,27 @@ from workshop_shared.observability.logging_trace import (
 from workshop_shared.observability.otel import span as otel_span
 from workshop_shared.observability.skill_span import emit_skill_load
 from workshop_shared.slack.alert_resolve import fetch_alert_payload
+from workshop_shared.tools.base import has_splunk_mcp_tools
+from workshop_shared.workshop_targets import resolve_o11y_environment
 
 
 _logger = logging.getLogger(__name__)
 INVESTIGATE_RECURSION_LIMIT = 25
 LOG_SEARCH_SKILL = "search-logs"
 IDENTIFY_TOOL_NAMES = frozenset({"o11y_search_alerts_or_incidents"})
+INVESTIGATE_EXCLUDED_TOOLS = frozenset({"o11y_search_alerts_or_incidents"})
+INVESTIGATE_TOOL_LIMITS: dict[str, int] = {
+    "o11y_get_apm_service_errors_and_requests": 1,
+    "o11y_get_apm_service_latency": 1,
+    "o11y_get_apm_exemplar_traces": 2,
+    "o11y_get_apm_service_dependencies": 1,
+    "o11y_get_apm_trace_tool": 2,
+    "o11y_get_apm_services": 1,
+    "o11y_get_apm_environments": 1,
+    "splunk_run_query": 2,
+    "splunk_get_indexes": 1,
+    "splunk_get_metadata": 1,
+}
 
 
 def _tools_for_node(tools: list[BaseTool], allowed: frozenset[str]) -> list[BaseTool]:
@@ -109,24 +124,36 @@ def _alert_summary(alert: dict[str, Any] | None) -> str:
 def _alert_mcp_params(
     alert: dict[str, Any] | None,
     investigation_metadata: dict[str, str] | None,
+    *,
+    settings: Settings | None = None,
 ) -> dict[str, str]:
     """Extract service_name and environment_name for APM MCP tool params."""
     service = ""
-    environment = ""
     if alert:
         props = alert.get("customProperties")
         if isinstance(props, dict):
             service = str(props.get("sf_service") or "").strip()
-            environment = str(props.get("sf_environment") or "").strip()
         if not service:
             service = str(alert.get("sf_service") or "").strip()
-        if not environment:
-            environment = str(alert.get("sf_environment") or "").strip()
     meta = investigation_metadata or {}
     if not service:
         service = str(meta.get("service") or "").strip()
-    if not environment:
-        environment = str(meta.get("environment") or "").strip()
+    environment = ""
+    if settings is not None:
+        environment = resolve_o11y_environment(
+            settings=settings,
+            alert=alert,
+            investigation_metadata=investigation_metadata,
+        )
+    else:
+        if alert:
+            props = alert.get("customProperties")
+            if isinstance(props, dict):
+                environment = str(props.get("sf_environment") or "").strip()
+            if not environment:
+                environment = str(alert.get("sf_environment") or "").strip()
+        if not environment:
+            environment = str(meta.get("environment") or "").strip()
     return {"service_name": service, "environment_name": environment}
 
 
@@ -148,8 +175,18 @@ def _log_search_hints(
     alert: dict[str, Any] | None,
     investigation_metadata: dict[str, str] | None,
     product_type: str | None,
+    *,
+    splunk_available: bool,
+    settings: Settings | None = None,
 ) -> str:
-    mcp_params = _alert_mcp_params(alert, investigation_metadata)
+    if not splunk_available:
+        return (
+            "\n\nSplunk log search: **not available** (Splunk platform MCP is not connected). "
+            "Do **not** call splunk_* tools. Note **Logs: not searched (Splunk MCP not connected)** "
+            "in your investigation summary."
+        )
+
+    mcp_params = _alert_mcp_params(alert, investigation_metadata, settings=settings)
     alert_time = _alert_time_hint(alert)
     k8s_parts: list[str] = []
     if alert:
@@ -166,9 +203,11 @@ def _log_search_hints(
                 if value:
                     k8s_parts.append(f"{key}={value}")
 
+    index_override = settings.splunk_search_index if settings is not None else None
     catalog_hint = format_log_index_catalog_for_product(
         product_type,
         service_name=mcp_params["service_name"],
+        index_override=index_override,
     )
 
     lines = [
@@ -195,15 +234,32 @@ def _log_search_hints(
     return "\n".join(lines)
 
 
+def _exemplar_trace_analysis_hints(product_type: str | None) -> str:
+    if product_type != "apm":
+        return ""
+    return (
+        "\n\nExemplar trace analysis (required when exemplars return trace_id):\n"
+        "- After o11y_get_apm_exemplar_traces, call o11y_get_apm_trace_tool for up to 2 "
+        "trace_ids (prefer rc_err exemplars for error alerts).\n"
+        "- In the full trace JSON, find error spans and read span attributes: "
+        "exception.message, http.route, rpc.method, code.function, service.name.\n"
+        "- Identify the deepest failing component (service + operation) and quote short "
+        "error text from attributes in your summary — do not invent details.\n"
+        "- Include trace_id and failing component before log search or final RCA."
+    )
+
+
 def _investigate_user_content(
     *,
     user_text: str,
     alert: dict[str, Any] | None,
     investigation_metadata: dict[str, str] | None,
     product_type: str | None,
+    splunk_available: bool,
+    settings: Settings | None = None,
 ) -> str:
     alert_text = _alert_summary(alert)
-    mcp_params = _alert_mcp_params(alert, investigation_metadata)
+    mcp_params = _alert_mcp_params(alert, investigation_metadata, settings=settings)
     hints = ""
     if product_type == "apm" and (mcp_params["service_name"] or mcp_params["environment_name"]):
         exemplar_hint = (
@@ -221,14 +277,26 @@ def _investigate_user_content(
             "If a tool returns a validation error, fix the param and retry once; "
             "then continue with other tools and summarize."
         )
-    hints += _log_search_hints(alert, investigation_metadata, product_type)
+        hints += _exemplar_trace_analysis_hints(product_type)
+    hints += _log_search_hints(
+        alert,
+        investigation_metadata,
+        product_type,
+        splunk_available=splunk_available,
+        settings=settings,
+    )
     gap_note = ""
     if not alert and investigation_has_anchors(investigation_metadata):
+        log_requirement = (
+            " and splunk_run_query before concluding."
+            if splunk_available
+            else ". Splunk log search is unavailable — note that in your summary."
+        )
         gap_note = (
             "\n\nAlert payload was NOT loaded from MCP — proceed using parsed metadata "
             f"(service={mcp_params['service_name'] or '?'}, "
             f"environment={mcp_params['environment_name'] or '?'}). "
-            "You MUST still run O11y MCP tools and splunk_run_query before concluding."
+            f"You MUST still run O11y MCP tools{log_requirement}"
         )
     return (
         f"Investigate this alert.\n\nUser request:\n{user_text}\n\n"
@@ -241,8 +309,9 @@ def _recursion_limit_summary(
     product_type: str | None,
     alert: dict[str, Any] | None,
     limit: int,
+    settings: Settings | None = None,
 ) -> str:
-    mcp_params = _alert_mcp_params(alert, None)
+    mcp_params = _alert_mcp_params(alert, None, settings=settings)
     return (
         f"Investigation incomplete: reached the {limit}-step tool loop limit "
         f"for product_type={product_type or 'unknown'}. "
@@ -298,6 +367,40 @@ def _append_skill_loaded(state: Part3State, skill_name: str) -> list[str]:
     return loaded
 
 
+def _investigate_prompt(
+    base_prompt: str,
+    skill_name: str,
+    *,
+    product_type: str | None,
+    splunk_available: bool,
+    log_search_skill: str,
+    settings: Settings | None = None,
+) -> str:
+    playbook = load_skill_content(skill_name) or ""
+    if splunk_available:
+        index_override = settings.splunk_search_index if settings is not None else None
+        catalog_block = format_log_index_catalog_for_product(
+            product_type,
+            index_override=index_override,
+        )
+        catalog_section = f"\n\n### Index catalog\n\n{catalog_block}" if catalog_block else ""
+        return (
+            f"{base_prompt}\n\n## Investigate (step 3)\n\n"
+            f"Product playbook ({skill_name}):\n\n{playbook}\n\n"
+            f"## Log search (required before concluding)\n\n{log_search_skill}"
+            f"{catalog_section}\n\n"
+            "Gather O11y evidence, then run Splunk log search (splunk_run_query) "
+            "using the index catalog before summarizing findings."
+        )
+    return (
+        f"{base_prompt}\n\n## Investigate (step 3)\n\n"
+        f"Product playbook ({skill_name}):\n\n{playbook}\n\n"
+        "Splunk platform MCP is **not connected** for this run — skip log search entirely. "
+        "Gather O11y evidence, summarize findings, and note "
+        "**Logs: not searched (Splunk MCP not connected)**."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Graph builder
 # ---------------------------------------------------------------------------
@@ -330,19 +433,7 @@ def build_part3_graph(
         tools_node_name="identify_tools",
     ).compile()
 
-    def _investigate_prompt(skill_name: str, product_type: str | None = None) -> str:
-        playbook = load_skill_content(skill_name) or ""
-        log_playbook = log_search_skill
-        catalog_block = format_log_index_catalog_for_product(product_type)
-        catalog_section = f"\n\n### Index catalog\n\n{catalog_block}" if catalog_block else ""
-        return (
-            f"{base_prompt}\n\n## Investigate (step 3)\n\n"
-            f"Product playbook ({skill_name}):\n\n{playbook}\n\n"
-            f"## Log search (required before concluding)\n\n{log_playbook}"
-            f"{catalog_section}\n\n"
-            "Gather O11y evidence, then run Splunk log search (splunk_run_query) "
-            "using the index catalog before summarizing findings."
-        )
+    splunk_available = has_splunk_mcp_tools(tools)
 
     async def identify_node(state: Part3State, config: RunnableConfig) -> dict[str, Any]:
         node = "identify"
@@ -499,10 +590,11 @@ def build_part3_graph(
         skill_name = state["skill_name"]
         assert skill_name is not None
         skills_loaded = _append_skill_loaded(state, skill_name)
-        skills_loaded = _append_skill_loaded(
-            {**state, "skills_loaded": skills_loaded},
-            LOG_SEARCH_SKILL,
-        )
+        if splunk_available:
+            skills_loaded = _append_skill_loaded(
+                {**state, "skills_loaded": skills_loaded},
+                LOG_SEARCH_SKILL,
+            )
         updates["skills_loaded"] = skills_loaded
 
         node_config = _node_config(
@@ -518,23 +610,34 @@ def build_part3_graph(
             chars=playbook_chars,
             detail=f"product_type={state.get('product_type')}",
         )
-        await emit_skill_load(
-            node_config,
-            skill_name=LOG_SEARCH_SKILL,
-            role="investigate",
-            chars=log_search_chars,
-            detail="required Splunk log search before concluding",
-        )
+        if splunk_available:
+            await emit_skill_load(
+                node_config,
+                skill_name=LOG_SEARCH_SKILL,
+                role="investigate",
+                chars=log_search_chars,
+                detail="required Splunk log search before concluding",
+            )
         log_skill_injected(skill_name=skill_name)
-        log_skill_injected(skill_name=LOG_SEARCH_SKILL)
+        if splunk_available:
+            log_skill_injected(skill_name=LOG_SEARCH_SKILL)
 
-        prompt = _investigate_prompt(skill_name, product_type=state.get("product_type"))
+        prompt = _investigate_prompt(
+            base_prompt,
+            skill_name,
+            product_type=state.get("product_type"),
+            splunk_available=splunk_available,
+            log_search_skill=log_search_skill,
+            settings=settings,
+        )
         investigate_subgraph = build_react_subgraph(
             llm,
             tools,
             system_prompt=prompt,
             llm_node_name="investigate_llm",
             tools_node_name="investigate_tools",
+            excluded_tool_names=INVESTIGATE_EXCLUDED_TOOLS,
+            tool_call_limits=INVESTIGATE_TOOL_LIMITS,
         ).compile()
 
         user_text = state.get("user_message") or ""
@@ -543,6 +646,8 @@ def build_part3_graph(
             alert=state.get("alert_payload"),
             investigation_metadata=state.get("investigation_metadata"),
             product_type=state.get("product_type"),
+            splunk_available=splunk_available,
+            settings=settings,
         )
         log_node_snapshot(
             node=node,
@@ -584,6 +689,7 @@ def build_part3_graph(
                     product_type=state.get("product_type"),
                     alert=state.get("alert_payload"),
                     limit=INVESTIGATE_RECURSION_LIMIT,
+                    settings=settings,
                 )
 
         log_node_exit(node=node, product_type=state.get("product_type"))

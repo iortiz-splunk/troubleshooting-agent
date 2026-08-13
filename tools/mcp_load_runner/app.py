@@ -20,10 +20,10 @@ from mcp_load_runner.metrics import (
 )
 from mcp_load_runner.scenarios import (
     DEFAULT_APM_SERVICE_NAME,
-    DEFAULT_ENVIRONMENT_NAME,
     DEFAULT_EXEMPLAR_TYPE,
     DEFAULT_SPLUNK_LOG_SERVICE,
     VALID_EXEMPLAR_TYPES,
+    _default_environment_name,
 )
 from mcp_load_runner.preflight import run_preflight
 from mcp_load_runner.runner import (
@@ -198,7 +198,7 @@ def main() -> None:
         )
         environment_name = st.text_input(
             "APM environment",
-            value=DEFAULT_ENVIRONMENT_NAME,
+            value=_default_environment_name(),
         )
         call_timeout = st.number_input(
             "Per-call timeout (seconds)",

@@ -6,6 +6,12 @@ from typing import Literal
 from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
+from workshop_shared.mcp_urls import (
+    normalize_splunk_cloud_mcp_url,
+    normalize_splunk_enterprise_mcp_url,
+    normalize_splunk_o11y_gateway_url,
+)
+
 LlmProvider = Literal["ollama", "openai", "azure_openai"]
 
 
@@ -139,7 +145,7 @@ class Settings(BaseSettings):
     )
     splunk_o11y_gateway_url: str | None = Field(
         default=None,
-        description="Splunk Cloud MCP gateway URL for Observability tools",
+        description="Splunk MCP server URL for Observability tools (https://host:8089/services/mcp)",
     )
     splunk_o11y_realm: str | None = Field(default=None, description="Observability realm, e.g. us1")
     splunk_o11y_api_token: str | None = Field(
@@ -150,6 +156,24 @@ class Settings(BaseSettings):
         default="o11y_",
         description="Only expose MCP tools whose names start with this prefix",
     )
+    splunk_o11y_environment: str = Field(
+        default="sre-agent-workshop",
+        description=(
+            "Default APM environment for o11y_get_apm_* tools when alert/metadata omit sf_environment"
+        ),
+        validation_alias=AliasChoices(
+            "splunk_o11y_environment",
+            "SPLUNK_O11Y_ENVIRONMENT",
+        ),
+    )
+    splunk_search_index: str = Field(
+        default="splunk4rookies-workshop",
+        description="Default Splunk index for splunk_run_query when not specified in alert context",
+        validation_alias=AliasChoices(
+            "splunk_search_index",
+            "SPLUNK_SEARCH_INDEX",
+        ),
+    )
 
     # Splunk Cloud MCP server (platform / logs — not Observability-only auth)
     enable_splunk_cloud_mcp: bool = Field(
@@ -158,7 +182,7 @@ class Settings(BaseSettings):
     )
     splunk_cloud_mcp_url: str | None = Field(
         default=None,
-        description="Splunk Cloud MCP gateway or server URL",
+        description="Splunk MCP server URL for platform / log tools (https://host:8089/services/mcp)",
     )
     splunk_cloud_mcp_bearer_token: str | None = Field(
         default=None,
@@ -299,6 +323,10 @@ class Settings(BaseSettings):
         self.openai_base_url = _without_placeholders(self.openai_base_url)
         self.azure_openai_endpoint = _without_placeholders(self.azure_openai_endpoint)
         self.azure_openai_api_key = _without_placeholders(self.azure_openai_api_key)
+
+        self.splunk_o11y_gateway_url = normalize_splunk_o11y_gateway_url(self.splunk_o11y_gateway_url)
+        self.splunk_cloud_mcp_url = normalize_splunk_cloud_mcp_url(self.splunk_cloud_mcp_url)
+        self.splunk_mcp_url = normalize_splunk_enterprise_mcp_url(self.splunk_mcp_url)
 
         if self.llm_provider is None:
             if self.openai_api_key and self.openai_base_url:

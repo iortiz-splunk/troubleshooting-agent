@@ -153,13 +153,21 @@ def format_log_index_catalog_for_product(
     catalog: dict[str, Any] | None = None,
     catalog_path: Path | None = None,
     service_name: str = "",
+    index_override: str | None = None,
 ) -> str:
     """Return a compact catalog slice for investigate prompts."""
     cat = catalog if catalog is not None else load_log_index_catalog(catalog_path=catalog_path)
     if not cat:
+        if index_override and index_override.strip():
+            return (
+                "Log index catalog (use before splunk_get_indexes):\n"
+                f"- default index: {index_override.strip()}\n"
+                "- only call splunk_get_indexes / splunk_get_metadata if catalog queries return zero rows"
+            )
         return ""
 
-    default_index = str(cat.get("default_index") or "").strip()
+    override = (index_override or "").strip()
+    default_index = override or str(cat.get("default_index") or "").strip()
     products = cat.get("products")
     if not isinstance(products, dict):
         products = {}
@@ -169,7 +177,7 @@ def format_log_index_catalog_for_product(
     if not isinstance(product, dict):
         product = {}
 
-    primary_index = str(product.get("primary_index") or default_index or "").strip()
+    primary_index = override or str(product.get("primary_index") or default_index or "").strip()
     sourcetypes = product.get("sourcetypes")
     if not isinstance(sourcetypes, list):
         sourcetypes = []
@@ -198,7 +206,10 @@ def format_log_index_catalog_for_product(
 
     example_spl = product.get("example_spl")
     if isinstance(example_spl, str) and example_spl.strip():
-        lines.append(f"- example SPL:\n{example_spl.strip()}")
+        spl = example_spl.strip()
+        if override:
+            spl = re.sub(r"index=\S+", f"index={override}", spl)
+        lines.append(f"- example SPL:\n{spl}")
 
     do_not_use = cat.get("do_not_use")
     if isinstance(do_not_use, list):

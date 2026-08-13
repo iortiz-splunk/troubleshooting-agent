@@ -6,13 +6,20 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from mcp_load_runner.servers import McpServerSelection
+from workshop_shared.config import Settings
 
 
 DEFAULT_APM_SERVICE_NAME = "payment"
 DEFAULT_SPLUNK_LOG_SERVICE = "payment"
-DEFAULT_ENVIRONMENT_NAME = "sre-agent-workshop"
 DEFAULT_EXEMPLAR_TYPE = "err"
-DEFAULT_INDEX = "k8s-apps"
+
+
+def _default_environment_name() -> str:
+    return Settings().splunk_o11y_environment
+
+
+def _default_index() -> str:
+    return Settings().splunk_search_index
 
 VALID_EXEMPLAR_TYPES = ("req", "err", "rc_err", "lat_buck_")
 
@@ -29,7 +36,7 @@ class ToolStep:
 class ScenarioContext:
     service_name: str = DEFAULT_APM_SERVICE_NAME
     splunk_log_service: str = DEFAULT_SPLUNK_LOG_SERVICE
-    environment_name: str = DEFAULT_ENVIRONMENT_NAME
+    environment_name: str = field(default_factory=_default_environment_name)
     time_range: dict[str, str] = field(default_factory=lambda: {"start": "-1h", "stop": "now"})
 
 
@@ -43,8 +50,9 @@ def _apm_params(context: ScenarioContext) -> dict[str, Any]:
 
 def _splunk_log_query(context: ScenarioContext) -> str:
     service = context.splunk_log_service.replace('"', "")
+    index = _default_index()
     return (
-        f'index={DEFAULT_INDEX} earliest=-1h latest=now '
+        f'index={index} earliest=-1h latest=now '
         f'(sourcetype=httpevent OR sourcetype="kube:container:*") '
         f'_raw="*{service}*" '
         "| head 20"

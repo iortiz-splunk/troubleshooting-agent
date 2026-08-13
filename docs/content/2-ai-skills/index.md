@@ -1,276 +1,148 @@
 ---
 title: "AI Skills"
-description: "Why playbooks matter, how to author SKILL.md files, and how skills are loaded in Parts 2 and 3 of the workshop."
+description: "What AI skills (playbooks) are, why they matter for reliable agents, and how they differ from tools and prompts."
 weight: 2
 navTitle: "AI Skills"
 ---
 
 An **AI skill** (also called a **playbook**) is a markdown file that tells the agent *how* to investigate — which tools to call, in what order, with which parameters, and what guardrails to follow. Skills do not replace tools; they **guide** the model so investigations are repeatable, grounded, and safe.
 
-In this workshop, every skill lives under `skills/<skill-name>/SKILL.md` with optional companion files such as `reference.md` or `indexes.md`.
+Think of it this way: **tools** are what the agent *can* do (query a database, search logs, fetch metrics). A **skill** is the procedure you want it to *follow* when doing a specific kind of work — like an SOP, runbook, or checklist you would give a new team member. The language model reads the skill and uses it to decide how to apply its tools.
 
-## Review Why Skills Matter for Agent Investigations
+In this workshop, skills live under `skills/<skill-name>/SKILL.md`. You will author and run them hands-on in [Part 2]({{< ref "8-part2-skill-playbooks" >}}) and see them load at each workflow step in [Part 3]({{< ref "9-part3-full-workflow" >}}).
 
-Without skills, the agent has tools and a general system prompt — but every run is an open-ended reasoning problem. The model must rediscover your runbook each time: which MCP tool to call first, how to format `params.time_range`, when to search logs, and when to stop. That leads to inconsistent quality, wasted tool calls, and conclusions that sound plausible but skip critical steps.
+## Why skills matter
 
-Skills address those gaps by encoding **operational knowledge** the model does not reliably infer on its own:
+An AI agent without skills still has access to tools and a general system prompt — but every run is an open-ended problem. The model must figure out the steps on its own: what to check first, which API parameters to use, when to stop, and how to format the answer. That works for simple questions, but operational tasks (incident response, compliance checks, customer support escalations) need **consistent, auditable steps**.
 
-| Problem without skills | What skills provide |
-|------------------------|---------------------|
-| Skips log search after APM metrics | Explicit **workflow order** (metrics → traces → logs → report) |
-| Wrong MCP parameters (`latency` instead of `lat_buck_`) | **Parameter literals** and do-not rules |
-| Searches wrong Splunk index (`main` vs workshop index) | **Environment catalog** (`indexes.md`) scoped to your tenant |
-| Invents facts when tools return nothing | **Guardrails** — state “no data found,” do not fabricate |
-| Different answer every run on the same alert | **Repeatable playbooks** facilitators can review and improve |
+Skills encode **operational knowledge** that models do not reliably invent on their own:
 
-Skills are especially valuable in **production agent systems** because they:
+| Without skills | With skills |
+|----------------|-------------|
+| Skips important steps (e.g. checks metrics but never searches logs) | Explicit **workflow order** — step 1, step 2, step 3 |
+| Uses wrong parameters or formats | **Parameter hints** and **do-not** rules |
+| Looks up data in the wrong place (wrong index, wrong environment) | **Environment catalogs** and scoped references |
+| States conclusions when tools returned nothing | **Guardrails** — say "no data found," do not guess |
+| Different answer every time on the same input | **Repeatable playbooks** teams can review and improve |
 
-- **Reduce hallucination risk** — the agent is steered toward tool output, not free-form guessing.
-- **Capture tribal knowledge** — senior SRE runbooks become version-controlled artifacts, not chat prompts.
-- **Improve observability** — when a skill is loaded, traces show *which playbook* ran, making debugging and evaluation easier.
-- **Enable safe iteration** — you can tighten one playbook without rewriting the whole agent.
+Skills are especially valuable in production because they:
 
-In Part 1 you see the baseline: tools only. Parts 2 and 3 show how the same tools behave differently when playbooks are injected at the right time.
+- **Reduce hallucination risk** — steer the agent toward tool output, not free-form guessing
+- **Capture tribal knowledge** — senior operators' runbooks become version-controlled files, not one-off chat prompts
+- **Improve observability** — traces can show *which playbook* ran, making debugging and evaluation easier
+- **Enable safe iteration** — tighten one skill without rewriting the whole agent
 
-## Distinguish Skills, Tools, and Prompts
+{{< notice title="Workshop tie-in" style="tip" >}}
+In [Part 1]({{< ref "6-part1-baseline-agent" >}}) you run an agent with **tools only** — no skills. Parts 2 and 3 add playbooks so you can compare how much structure improves investigation quality on the same alert.
+{{< /notice >}}
 
-Keep these roles separate when you design an agent:
+## Skills, tools, and prompts — three different layers
 
-| Layer | Role | Example in this workshop |
-|-------|------|---------------------------|
-| **System prompt** | Global behavior, tone, safety | Base instructions in `prompt.py` |
-| **Tools (MCP)** | Fetch or act on external systems | `o11y_get_apm_service_latency`, `splunk_run_query` |
-| **Skills** | Task-specific investigation steps | `troubleshoot-apm-incidents`, `search-logs` |
+When you design an agent, keep these roles separate:
 
-The model **chooses** tools (within what the framework exposes). Skills **constrain and sequence** that choice so the investigation matches your standards.
+| Layer | What it is | General example | Workshop example |
+|-------|------------|-----------------|------------------|
+| **System prompt** | Standing instructions for every run — tone, safety, global rules | "You are a helpful support agent. Never share internal credentials." | Base instructions in `prompt.py` |
+| **Tools** | Callable functions that fetch data or take action in external systems | `search_tickets`, `get_account_balance`, `run_database_query` | `o11y_get_apm_service_latency`, `splunk_run_query` |
+| **Skills** | Task-specific procedures injected when a particular kind of work starts | "Refund escalation playbook" or "latency investigation runbook" | `latency-spike`, `troubleshoot-apm-incidents` |
 
-## Create a New Skill Playbook
+The model **chooses** among the tools you expose (within framework limits). Skills **constrain and sequence** that choice so the work matches your standards — they do not execute tools themselves; they tell the model what to aim for.
 
-### Create the Skill Directory
+{{< notice title="Important" style="primary" >}}
+Skills are **not** tools. A skill is text guidance loaded into the agent's context. Tools are the actual API calls. Confusing the two is a common mistake when reading agent traces.
+{{< /notice >}}
 
-Each skill is its own folder with a primary playbook file:
+## What goes inside a skill
 
-```text
-skills/
-  your-skill-name/
-    SKILL.md          # required
-    reference.md      # optional — extra field names, links, tables
-```
-
-Use a short, descriptive folder name. It should align with the `name` field in your YAML block.
-
-### Create SKILL.md with YAML
-
-Every `SKILL.md` starts with YAML between `---` delimiters. At minimum, include **`name`** and **`description`**:
-
-```yaml
----
-name: your-skill-name
-description: One line — when the agent should use this playbook
----
-```
-
-You can add optional metadata to help routing and documentation:
-
-```yaml
-alert_signals:
-  - latency
-  - slow
-  - p99
-mcp_tools:
-  - search_alerts
-  - get_service_metrics
-```
-
-- **`alert_signals`** — keywords that help match this skill to a user message or alert text
-- **`mcp_tools`** — tools the playbook expects (for authors and the model; not usually validated at runtime)
-
-### Write the Playbook Body
-
-Use clear sections that humans and models can scan quickly:
+Most skills are plain markdown files — easy for humans to read and edit, easy for models to follow. A typical structure:
 
 | Section | Purpose |
 |---------|---------|
-| **When to use** | Alert types, symptoms, or user intents |
-| **Required context** | Service, environment, time window, identifiers from the alert |
-| **Tool sequence** | Ordered steps with exact tool and parameter names |
-| **Interpretation** | How to read metrics, traces, or logs |
-| **Do not** | Guardrails (wrong params, skipping steps, inventing data) |
-| **Final step** | Output format or hand-off to another skill |
+| **When to use** | Symptoms, alert types, or user intents that match this playbook |
+| **Required context** | What the agent must know before acting (IDs, time window, environment) |
+| **Steps / tool sequence** | Ordered actions — often mapped to specific tools |
+| **Interpretation** | How to read results — not just what to call |
+| **Do not** | Guardrails: skip steps, wrong formats, inventing data |
+| **Output format** | How to hand off or report (sometimes a separate reporting skill) |
+
+Many implementations add a short **metadata block** at the top (name, description, keywords for routing). Optional **companion files** hold long reference tables — field names, index catalogs, query templates — so the main skill stays scannable.
 
 {{< notice title="Tip" style="tip" >}}
-Keep `SKILL.md` focused on workflow. Move long tables to companion files such as `reference.md` (field names, query hints) or `indexes.md` (environment-specific catalogs).
+Write skills for **both** the model and your team: short bullets, clear headings, and concrete examples beat long prose.
 {{< /notice >}}
 
-### Add Reference Material (Optional)
+## How agents load and use skills
 
-When a playbook needs more detail than fits comfortably in one file, add companion markdown files in the same folder. The agent framework can append them when the skill loads — for example, field-name tables or index/sourcetype catalogs.
+Frameworks differ in *when* a skill enters the conversation, but the idea is the same: the playbook text is appended to the agent's instructions for that run (or that workflow step).
 
-{{< notice title="Important" style="primary" >}}
-Never put secrets in skill files — use environment variables and secure configuration for credentials.
-{{< /notice >}}
+| Pattern | How it works | When it fits |
+|---------|--------------|--------------|
+| **Upfront injection** | Match the user's message or alert to a skill, load it before the first model turn | Simple agents, keyword routing, fast prototypes |
+| **Per workflow step** | Different skills at different stages (identify → investigate → report) | Production workflows with explicit phases |
+| **On demand** | Agent or router calls a "load skill" tool when it recognizes the task | Large skill libraries, dynamic runbooks |
 
-### Review the Skill Design Checklist
+You do not need to implement routing yourself on day one — the workshop shows two common patterns:
 
-Use this checklist when authoring or reviewing a skill. **Required** items should always be present; **optional** items improve clarity and routing but depend on your agent setup.
+- **Part 2** — one domain skill plus a reporting skill, injected **upfront** via keyword matching
+- **Part 3** — different skills at each **graph node** (alert identification, product-specific investigation, final report)
 
-#### Files and folder
+Same `SKILL.md` file format; different orchestration around it.
 
-| Component | Required? | Notes |
-|-----------|-----------|-------|
-| **Skill directory** | **Required** | `skills/<skill-name>/` — folder name should match `name` in YAML |
-| **`SKILL.md`** | **Required** | Playbook with YAML block + markdown body |
-| **`reference.md`** | Optional | Extra field names, query hints, or long reference tables |
-| **`indexes.md`** | Optional | Environment-specific catalogs (e.g. log indexes and sourcetypes) |
+## Example: a small triage skill
 
-#### SKILL.md YAML
-
-| Field | Required? | Notes |
-|-------|-----------|-------|
-| **`name`** | **Required** | Skill identifier — usually matches the folder name |
-| **`description`** | **Required** | One clear sentence describing when to use this playbook |
-| **`alert_signals`** | Optional | Lowercase keywords for matching user messages or alerts to this skill |
-| **`mcp_tools`** | Optional | Documents which tools the playbook expects — guides authors and the model |
-| **`rule_patterns`** | Optional | Alert or detector name patterns for human reference |
-
-#### Playbook body (markdown)
-
-| Section | Required? | Notes |
-|---------|-----------|-------|
-| **When to use** | **Required** | Alert types, symptoms, or user intents that match this playbook |
-| **Required context** | Recommended | What the agent must know before calling tools (service, environment, time window, IDs) |
-| **Tool sequence** | **Required** | Ordered steps with exact tool names and parameter fields |
-| **Interpretation** | Recommended | How to read tool output — not just what to call |
-| **Do not** | **Required** | Guardrails: wrong params, skipping steps, inventing data when tools return nothing |
-| **Response template / final step** | Optional | Output shape or pointer to a separate reporting skill |
-
-#### Quality checks
-
-- [ ] **`name`** matches the skill folder and is easy to recognize in agent traces.
-- [ ] **`description`** is one clear sentence suitable for skill selection.
-- [ ] **`alert_signals`** (if used) cover the words users or alerts will actually contain.
-- [ ] **Tool names** match exactly what your agent exposes — typos cause failed calls.
-- [ ] **Parameters** follow the format your tools expect (e.g. nested `params` objects where required).
-- [ ] **Time ranges** use a consistent structure (e.g. `{"start": "-1h", "stop": "now"}`), not ambiguous strings.
-- [ ] **Do not** section covers common failure modes (skipping steps, guessing when data is missing).
-- [ ] **No secrets** in skill files — use env/config for credentials.
-- [ ] **Companion files** stay in sync when your environment or tool schemas change.
-
-## Review the alert-triage Skill (Part 2)
-
-This small skill runs at the start of many investigations: confirm the alert is active and capture identifiers for later tools.
-
-**SKILL.md YAML** — name, description, routing signals, expected tools:
+Below is a simplified alert-triage playbook from this repo. Notice how it states *when* to use the skill, *what* context is required, *which* tools to call in order, and *what not* to do — without any Python code.
 
 ```yaml
 ---
 name: alert-triage
-description: Parse Slack O11y alerts and confirm active incidents via o11y_search_alerts_or_incidents.
-alert_signals:
-  - alert
-  - incident
-  - triggered
-rule_patterns:
-  - "*"
-mcp_tools:
-  - o11y_search_alerts_or_incidents
+description: Confirm an observability alert is active and capture identifiers for follow-up steps.
 ---
 ```
-
-**Body** — when to use, context, tool sequence, response shape, guardrails:
 
 ```markdown
 # Alert triage
 
 ## When to use
-Any Splunk Observability alert from Slack before deeper investigation.
+Before deeper investigation on any monitoring alert.
 
 ## Required context
-- sf_service, sf_environment (exact APM names)
-- time_range: {"start": "-1h", "stop": "now"}
+- Service and environment names (exact values from the alert)
+- Time window for the investigation (e.g. last hour)
 
-## Tool sequence
-1. o11y_search_alerts_or_incidents — params.service_name, params.environment_name, params.time_range
-2. Capture eventId from results for cross-referencing in Observability Cloud
-
-## Response template
-- Alert status (active / cleared)
-- Service and environment
-- Recommended next playbook (latency vs errors)
+## Steps
+1. Search for matching alerts or incidents — filter by service and environment
+2. Record alert ID and status (active / cleared) for later steps
 
 ## Do not
-- Search without service_name
-- Use time_range as a bare string
+- Skip the search when the user pasted partial alert text
+- Invent alert IDs if the search returns nothing — say what you tried
 ```
 
 Full source: [`part2_agent/skills/alert-triage/SKILL.md`](https://github.com/iortiz-splunk/troubleshooting-agent/blob/main/part2_agent/skills/alert-triage/SKILL.md).
 
-## Review the search-logs Skill (Part 3)
+Larger skills in this workshop add product-specific steps (APM latency, log search, structured reports). The pattern is the same: **procedure in markdown**, loaded when the agent needs that kind of expertise.
 
-Part 3 treats log search as a **mandatory** cross-cutting skill — every product investigation loads it alongside the APM/IM/RUM/Synthetics playbook.
+## Best practices
 
-What makes this skill effective:
+- **One concern per skill** — compose smaller playbooks ("search logs," "format report") instead of one giant file
+- **Name tools exactly** as your agent exposes them — typos become failed calls
+- **Be explicit about empty results** — "no data found" is a valid outcome; guessing is not
+- **Version skills like code** — review changes in git; runbooks drift if nobody owns them
+- **Never put secrets in skill files** — credentials belong in environment variables or a secrets manager
+- **Keep environment-specific catalogs separate** — index names, field maps, and tenant tables change; companion files are easier to refresh
 
-1. **Explicit prerequisite** — do not conclude until `splunk_run_query` runs (when Splunk MCP is connected).
-2. **Catalog-first workflow** — use `indexes.md` before `splunk_get_indexes`.
-3. **Copy-paste SPL patterns** — scoped to the workshop tenant (`k8s-apps`, `kube:container:*`, `httpevent`).
-4. **Companion files** — `reference.md` for field names; `indexes.md` for facilitator-maintained index discovery.
+## What you will do in the workshop
 
-Snippet from the workflow section:
+This page is conceptual background. Hands-on work comes later:
 
-```markdown
-## Catalog-first workflow (mandatory order)
+| When | What |
+|------|------|
+| [Part 1]({{< ref "6-part1-baseline-agent" >}}) | Agent with tools only — baseline with no playbooks |
+| [Part 2]({{< ref "8-part2-skill-playbooks" >}}) | Run a skill-injected agent; complete the **`error-rate`** skill lab |
+| [Part 3]({{< ref "9-part3-full-workflow" >}}) | Full workflow — skills load per graph node, including log search and structured reports |
 
-1. Read the index catalog injected in your investigate prompt (`indexes.md`).
-2. Collect O11y context (service, environment, pod/host/trace tags).
-3. splunk_run_query with scoped SPL using the catalog index.
-4. Discovery fallback only if catalog queries return zero rows.
-5. Summarize findings — or state no logs found with filters tried.
-```
-
-Full source: [`part3_agent/skills/search-logs/`](https://github.com/iortiz-splunk/troubleshooting-agent/tree/main/part3_agent/skills/search-logs).
-
-## Review the troubleshoot-apm-incidents Skill (Part 3)
-
-Product skills are longer: they define the full O11y investigation path for one alert type. Notice how they combine **tool order**, **parameter literals**, and **cross-skill references**:
-
-- Calls `o11y_get_apm_services`, latency/error breakdowns, exemplar traces with `exemplar_type` = `lat_buck_` (trailing underscore for latency alerts).
-- Requires **search-logs** before finishing.
-- Hands off to **troubleshoot-report** for the final user-facing format.
-
-Full source: [`part3_agent/skills/troubleshoot-apm-incidents/SKILL.md`](https://github.com/iortiz-splunk/troubleshooting-agent/blob/main/part3_agent/skills/troubleshoot-apm-incidents/SKILL.md).
-
-## Explore the Part 3 Skill Library
-
-| Skill | Role |
-|-------|------|
-| `get-alerts-or-incidents` | Load and parse alert payload in **identify** |
-| `troubleshoot-apm-incidents` | APM metrics, traces, infra correlation |
-| `troubleshoot-im-incidents` | Infrastructure / K8s alerts |
-| `troubleshoot-rum-incidents` | Real user monitoring anomalies |
-| `troubleshoot-synthetics-incidents` | Synthetic check failures |
-| `search-logs` | Splunk platform log search (always in **investigate**) |
-| `troubleshoot-report` | Standard report sections in **report** |
-| `troubleshoot` | Overview / checklist referencing other skills |
-
-## Apply Best Practices for Effective Skills
-
-- **Write for the model and the facilitator** — short bullets beat long prose; tables beat paragraphs.
-- **Name tools exactly** as they appear in MCP — typos become failed tool calls.
-- **Prefer one concern per skill** — compose with references (`Apply **search-logs** after APM tools`) instead of one giant file.
-- **Version with git** — skills are code; review changes like any runbook update.
-- **Refresh environment catalogs** after tenant changes — run Splunk MCP discovery and update `indexes.md` (see `part3_agent/README.md`).
-
-## Complete the error-rate Skill Lab (Part 2)
-
-The workshop lab asks you to complete the **`error-rate`** skill using `latency-spike` as a structural reference:
-
-1. Edit `part2_agent/skills/error-rate/SKILL.md` — SKILL.md YAML and tool sequence.
-2. Run Part 2 on an error-rate alert.
-3. Confirm the trace shows `skill loaded=error-rate` and at least two MCP calls.
-
-Details: [Part 2 — Skill Playbooks]({{< ref "8-part2-skill-playbooks" >}}).
+Skill authoring details (YAML fields, checklist, MCP tool names) are covered in Part 2 when you edit `SKILL.md` files yourself.
 
 ---
 
-**Next:** Continue with setup and **Part 1** when you are ready to run the baseline agent.
+**Next:** [Connect to EC2]({{< ref "3-connect-ec2" >}}) when you are ready to set up your workshop environment, or return to [Overview of AI Agents]({{< ref "1-ai-agents-overview" >}}) if you want to review orchestration and tools first.

@@ -32,13 +32,31 @@ Use one shared **params.time_range** (e.g. `{"start": "-1h", "stop": "now"}`) fo
 
 1. **o11y_get_apm_service_errors_and_requests** — error/request breakdown (primary for error-rate alerts).
 2. **o11y_get_apm_service_latency** — only if latency context is needed (latency alerts or high P99 in step 1).
-3. **o11y_get_apm_exemplar_traces** — `exemplar_type`: `err` or `rc_err` for error alerts; `lat_buck_` for latency alerts.
-4. **o11y_get_apm_trace_tool** — optional, only if you have a trace_id from step 3 worth inspecting.
-5. Skip **o11y_get_apm_services** unless steps 1–3 lack service health summary.
+3. **o11y_get_apm_exemplar_traces** — `exemplar_type`: `err` or `rc_err` for error alerts; `lat_buck_` for latency alerts. Prefer **`rc_err`** when the detector is error-related (often marks root-cause span).
+4. **Exemplar trace analysis (required when step 3 returns trace IDs)** — see below; then **o11y_get_apm_trace_tool** for each trace worth opening (max 2).
+5. Skip **o11y_get_apm_services** unless steps 1–4 lack service health summary.
 
 Do **not** call **o11y_get_apm_service_errors_and_requests** again with `-30m` after already fetching `-1h` unless the first call errored.
 
-## Log search (required before concluding)
+## Exemplar trace analysis (span attributes → root cause component)
+
+After **o11y_get_apm_exemplar_traces**, **do not skip** full trace detail when `trace_id` values are present.
+
+1. **Select traces** — prefer `rc_err` exemplars for error alerts; otherwise `err` or `lat_buck_` for latency.
+2. **o11y_get_apm_trace_tool** — call with `params.trace_id` from the exemplar response (include `service_name` / `environment_name` when required).
+3. **Walk the span tree** in the trace JSON:
+   - Find spans marked **error** (`error: true`, `otel.status_code: ERROR`, HTTP 4xx/5xx).
+   - Identify the **deepest failing span** (often downstream of the alerted service).
+   - Read **span attributes** on that span — they often contain the exact failure (exception message, HTTP route, RPC method, DB error, `code.function`, stack hints).
+4. **Name the root cause component** — service + operation + short error quote from attributes (not invented text).
+5. **Record call path** — e.g. `frontend → checkoutservice → payment` with failure on `payment`.
+6. Carry **`trace_id`** and error text into **search-logs** (when Splunk MCP is connected) and **troubleshoot-report** RCA.
+
+Attribute field names vary by instrumentation. Prioritize: `exception.message`, `exception.type`, `http.route`, `http.status_code`, `rpc.method`, `db.statement`, `code.function`, `code.namespace`, `error.message`, `service.name`, `operation.name`. More detail: [reference.md](reference.md).
+
+If exemplars return no `trace_id`, note **Trace RCA: unavailable** and continue with metrics and logs.
+
+## Log search (required before concluding when Splunk MCP is connected)
 
 After APM metrics/traces, apply **search-logs** using **Splunk platform MCP** (`splunk_*` tools — not `o11y_*`):
 
@@ -50,6 +68,10 @@ After APM metrics/traces, apply **search-logs** using **Splunk platform MCP** (`
 **Do not** finish the investigation without this step when Splunk MCP tools are available.
 
 ## Root cause analysis  
-Use the gathered data to form a view of root cause and recommendations (traffic mix, dependencies, tail latency, resource pressure, etc.).  
+Use metrics, **trace span attributes** (from exemplar + full trace), and logs to form RCA:
 
-**Final step:** Present results using the **troubleshoot-report** skill (standard sections: alert/incident, identifiers, timestamps, links, summary, concise RCA, next steps). Pull links from MCP responses (service pages, trace analyzer, trace IDs).  
+- **Trace evidence:** failing `service.name`, operation/`http.route`/`code.function`, quoted `exception.message` or status code from the error span.
+- **Metrics:** error rate, latency tail, dependency shifts.
+- **Logs:** patterns matching the trace error text (when Splunk MCP connected).
+
+**Final step:** Present results using the **troubleshoot-report** skill (standard sections: alert/incident, identifiers, timestamps, links, summary, concise RCA, next steps). Pull links from MCP responses (service pages, trace analyzer, trace IDs). In RCA, cite the **component and method/operation** discovered from span attributes when available.

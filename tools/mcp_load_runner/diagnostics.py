@@ -136,7 +136,7 @@ def build_preflight_hints(
             [
                 "Splunk Cloud MCP connected but returned 0 tools — this is why "
                 f"{', '.join(missing_tools) or 'splunk_run_query'} is missing.",
-                "Confirm SPLUNK_CLOUD_MCP_URL is the Splunk Cloud MCP gateway (not the O11y gateway URL).",
+                "Confirm SPLUNK_CLOUD_MCP_URL is the direct MCP server (https://<host>:8089/services/mcp).",
                 "Regenerate SPLUNK_CLOUD_MCP_BEARER_TOKEN from the Splunk MCP app install in your tenant.",
                 "Set SPLUNK_CLOUD_MCP_TENANT to your Splunk Cloud tenant name (splunk_tenant header).",
                 "Compare with a working Cursor MCP entry for Splunk Cloud, then run: troubleshooting-agent mcp-doctor",

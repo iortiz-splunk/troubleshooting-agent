@@ -124,3 +124,7 @@ The site deploys automatically from the **`workshop`** branch via GitHub Actions
 - **[part2_agent/README.md](part2_agent/README.md)** — skill wiring exercises
 - **[part3_agent/README.md](part3_agent/README.md)** — facilitator demo script
 - **[tools/mcp_load_runner/README.md](tools/mcp_load_runner/README.md)** — MCP capacity / load testing
+
+## License
+
+Licensed under the MIT License — see [LICENSE](LICENSE).

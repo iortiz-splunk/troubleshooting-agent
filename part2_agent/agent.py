@@ -6,6 +6,7 @@ from part1_agent.agent import run_chat as _part1_run_chat
 from part2_agent.prompt import SYSTEM_PROMPT
 from part2_agent.skill_inject import build_system_prompt
 from workshop_shared.config import Settings
+from workshop_shared.workshop_targets import append_workshop_targets_prompt
 
 __all__ = ["run_chat", "SYSTEM_PROMPT", "build_system_prompt"]
 
@@ -29,6 +30,7 @@ def run_chat(
         user_message=user_message,
         metadata=investigation_metadata,
     )
+    system_prompt = append_workshop_targets_prompt(system_prompt, settings)
 
     enriched_metadata = dict(investigation_metadata) if investigation_metadata else {}
     enriched_metadata["workshop_part"] = "part2_agent"
