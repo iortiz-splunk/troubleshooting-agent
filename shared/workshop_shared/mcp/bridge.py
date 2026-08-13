@@ -13,6 +13,10 @@ from pydantic import BaseModel, Field, create_model
 
 from workshop_shared.config import Settings
 from workshop_shared.mcp.connect import connect_mcp_session
+from workshop_shared.mcp.diagnostics import (
+    capture_mcp_remote_stderr,
+    hints_for_mcp_error,
+)
 from workshop_shared.mcp.gateway import (
     splunk_cloud_mcp_params,
     splunk_enterprise_mcp_params,
@@ -34,6 +38,7 @@ class McpServerInfo:
     tool_count: int
     tool_names: list[str]
     error: str | None = None
+    hints: tuple[str, ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -290,6 +295,7 @@ async def check_mcp_servers(settings: Settings) -> list[McpServerInfo]:
                 "splunk_o11y",
                 splunk_o11y_gateway_params(settings),
                 settings.splunk_o11y_tool_prefix,
+                settings,
             )
         )
 
@@ -299,6 +305,7 @@ async def check_mcp_servers(settings: Settings) -> list[McpServerInfo]:
                 "splunk_cloud_mcp",
                 splunk_cloud_mcp_params(settings),
                 None,
+                settings,
             )
         )
 
@@ -308,6 +315,7 @@ async def check_mcp_servers(settings: Settings) -> list[McpServerInfo]:
                 "splunk_enterprise_mcp",
                 splunk_enterprise_mcp_params(settings),
                 None,
+                settings,
             )
         )
 
@@ -340,6 +348,11 @@ def _format_mcp_error(exc: BaseException) -> str:
             "(or MCP_TLS_CA_CERTS=/path/to/ca.pem). In Cursor, add "
             '"env": {"NODE_TLS_REJECT_UNAUTHORIZED": "0"} to the MCP server block.'
         )
+    if "connection closed" in lowered:
+        return (
+            f"{message} — mcp-remote exited before MCP handshake "
+            "(see hints below: URL, credentials, HTTP probe, mcp-remote stderr)"
+        )
     return message
 
 
@@ -347,6 +360,7 @@ async def _check_server(
     name: str,
     params: Any,
     name_prefix: str | None,
+    settings: Settings,
 ) -> McpServerInfo:
     try:
         async with connect_mcp_session(params) as session:
@@ -356,10 +370,17 @@ async def _check_server(
             ]
             return McpServerInfo(name=name, ok=True, tool_count=len(names), tool_names=names)
     except Exception as exc:
+        error = _format_mcp_error(exc)
+        hints = list(hints_for_mcp_error(error, server_name=name, settings=settings, params=params))
+        if "connection closed" in error.lower():
+            stderr = await capture_mcp_remote_stderr(params)
+            if stderr:
+                hints.append(f"mcp-remote stderr: {stderr}")
         return McpServerInfo(
             name=name,
             ok=False,
             tool_count=0,
             tool_names=[],
-            error=_format_mcp_error(exc),
+            error=error,
+            hints=tuple(hints),
         )

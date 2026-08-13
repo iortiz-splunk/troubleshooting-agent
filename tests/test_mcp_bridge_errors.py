@@ -13,3 +13,9 @@ def test_format_mcp_error_unwraps_exception_group() -> None:
 
 def test_format_mcp_error_plain_exception() -> None:
     assert _format_mcp_error(RuntimeError("connection refused")) == "connection refused"
+
+
+def test_format_mcp_error_connection_closed_adds_hint() -> None:
+    message = _format_mcp_error(RuntimeError("Connection closed"))
+    assert "Connection closed" in message
+    assert "mcp-remote exited" in message
