@@ -136,6 +136,27 @@ def test_empty_enable_flags_default_false(monkeypatch: pytest.MonkeyPatch) -> No
     assert settings.enable_splunk_mcp is False
 
 
+def test_enable_splunk_o11y_false_is_not_auto_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENABLE_SPLUNK_O11Y", "false")
+    settings = Settings(
+        _env_file=None,
+        splunk_o11y_gateway_url="https://mcp.example:8089/services/mcp",
+        splunk_o11y_realm="us1",
+        splunk_o11y_api_token="token",
+    )
+    assert settings.enable_splunk_o11y is False
+
+
+def test_enable_splunk_cloud_mcp_false_is_not_auto_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENABLE_SPLUNK_CLOUD_MCP", "false")
+    settings = Settings(
+        _env_file=None,
+        splunk_cloud_mcp_url="https://mcp.example:8089/services/mcp",
+        splunk_cloud_mcp_bearer_token="token",
+    )
+    assert settings.enable_splunk_cloud_mcp is False
+
+
 def test_openai_placeholder_base_url_is_ignored() -> None:
     settings = Settings(
         openai_api_key="real-key",

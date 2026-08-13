@@ -373,12 +373,23 @@ async def _check_server(
         error = _format_mcp_error(exc)
         hints = list(hints_for_mcp_error(error, server_name=name, settings=settings, params=params))
         if "connection closed" in error.lower():
-            try:
-                stderr = await capture_mcp_remote_stderr(params)
-            except Exception:
-                stderr = None
-            if stderr:
-                hints.append(f"mcp-remote stderr: {stderr}")
+            http_hint = next((hint for hint in hints if hint.startswith("HTTP probe:")), "")
+            unreachable = any(
+                marker in http_hint.lower()
+                for marker in ("timed out", "could not reach", "connection refused")
+            )
+            if unreachable:
+                hints.append(
+                    "Skipped mcp-remote stderr probe — MCP host unreachable at the URL above "
+                    "(fix SPLUNK_O11Y_GATEWAY_URL before checking tokens)."
+                )
+            else:
+                try:
+                    stderr = await capture_mcp_remote_stderr(params)
+                except Exception:
+                    stderr = None
+                if stderr:
+                    hints.append(f"mcp-remote stderr: {stderr}")
         return McpServerInfo(
             name=name,
             ok=False,

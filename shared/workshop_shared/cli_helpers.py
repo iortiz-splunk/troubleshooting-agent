@@ -77,6 +77,14 @@ def run_mcp_doctor() -> None:
     ):
         typer.echo("No MCP integrations enabled.")
         raise typer.Exit(code=1)
+    enabled = []
+    if settings.enable_splunk_o11y:
+        enabled.append("o11y")
+    if settings.enable_splunk_cloud_mcp:
+        enabled.append("cloud")
+    if settings.enable_splunk_mcp:
+        enabled.append("enterprise")
+    typer.echo(f"MCP integrations enabled: {', '.join(enabled)}")
     npx_error = npx_availability_error(settings)
     if npx_error:
         typer.echo(npx_error, err=True)

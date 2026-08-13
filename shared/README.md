@@ -128,7 +128,7 @@ When trace is on, `troubleshooting-agent chat` prints the response in the log bl
 3. Run `mcp-doctor` — expect `OK` and a list of `o11y_*` tools.
 4. Test: `cd part1_agent && troubleshooting-agent chat "List APM environments"`.
 
-**MCP URL paths:** You can set `SPLUNK_CLOUD_MCP_URL` and `SPLUNK_O11Y_GATEWAY_URL` to the hostname only (e.g. `https://mcp-shw-60c529e5624115.stg.splunkcloud.com`). The agent appends `:8089/services/mcp` when that path is missing.
+**MCP URL paths:** Set `SPLUNK_CLOUD_MCP_URL` and `SPLUNK_O11Y_GATEWAY_URL` to the direct MCP server (`https://mcp-<instance>.stg.splunkcloud.com:8089/services/mcp`). Host-only values get `:8089/services/mcp` appended. If o11y still uses legacy `region-*.api.scs.splunk.com`, the agent reuses the Cloud MCP URL automatically.
 
 MCP tools expect a `params` object. For time windows use:
 

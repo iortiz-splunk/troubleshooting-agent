@@ -1,5 +1,6 @@
 """Application settings loaded from environment variables."""
 
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -7,6 +8,7 @@ from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 from workshop_shared.mcp_urls import (
+    align_o11y_gateway_url_with_cloud_mcp,
     normalize_splunk_cloud_mcp_url,
     normalize_splunk_enterprise_mcp_url,
     normalize_splunk_o11y_gateway_url,
@@ -20,6 +22,18 @@ def _feature_enabled(requested: bool, credentials: dict[str, str | None]) -> boo
     if not requested:
         return False
     return all(credentials.values())
+
+
+def _env_toggle_explicitly_off(*names: str) -> bool:
+    """True when an ENABLE_* env var is set to a false-like value."""
+    false_values = {"0", "false", "no", "off"}
+    for name in names:
+        raw = os.environ.get(name)
+        if raw is None:
+            continue
+        if raw.strip().lower() in false_values:
+            return True
+    return False
 
 
 def _is_placeholder_value(value: str | None) -> bool:
@@ -327,6 +341,13 @@ class Settings(BaseSettings):
         self.splunk_o11y_gateway_url = normalize_splunk_o11y_gateway_url(self.splunk_o11y_gateway_url)
         self.splunk_cloud_mcp_url = normalize_splunk_cloud_mcp_url(self.splunk_cloud_mcp_url)
         self.splunk_mcp_url = normalize_splunk_enterprise_mcp_url(self.splunk_mcp_url)
+        cloud_url_for_o11y = self.splunk_cloud_mcp_url or normalize_splunk_cloud_mcp_url(
+            os.environ.get("SPLUNK_CLOUD_MCP_URL"),
+        )
+        self.splunk_o11y_gateway_url = align_o11y_gateway_url_with_cloud_mcp(
+            self.splunk_o11y_gateway_url,
+            cloud_url_for_o11y,
+        )
 
         if self.llm_provider is None:
             if self.openai_api_key and self.openai_base_url:
@@ -386,7 +407,9 @@ class Settings(BaseSettings):
                 "SPLUNK_O11Y_REALM": self.splunk_o11y_realm,
                 "SPLUNK_O11Y_API_TOKEN": self.splunk_o11y_api_token,
             }
-            if all(o11y_credentials.values()):
+            if not _env_toggle_explicitly_off("ENABLE_SPLUNK_O11Y", "enable_splunk_o11y") and all(
+                o11y_credentials.values()
+            ):
                 self.enable_splunk_o11y = True
         self.enable_splunk_cloud_mcp = _feature_enabled(
             self.enable_splunk_cloud_mcp,
@@ -395,6 +418,16 @@ class Settings(BaseSettings):
                 "SPLUNK_CLOUD_MCP_BEARER_TOKEN": self.splunk_cloud_mcp_bearer_token,
             },
         )
+        if not self.enable_splunk_cloud_mcp and not _env_toggle_explicitly_off(
+            "ENABLE_SPLUNK_CLOUD_MCP",
+            "enable_splunk_cloud_mcp",
+        ):
+            cloud_credentials = {
+                "SPLUNK_CLOUD_MCP_URL": self.splunk_cloud_mcp_url,
+                "SPLUNK_CLOUD_MCP_BEARER_TOKEN": self.splunk_cloud_mcp_bearer_token,
+            }
+            if all(cloud_credentials.values()):
+                self.enable_splunk_cloud_mcp = True
         self.enable_splunk_mcp = _feature_enabled(
             self.enable_splunk_mcp,
             {

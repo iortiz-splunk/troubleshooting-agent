@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import ssl
 import urllib.error
 import urllib.request
 from typing import TYPE_CHECKING
 
+from workshop_shared.mcp_urls import is_legacy_splunk_cloud_api_gateway_host
+
 if TYPE_CHECKING:
     from mcp import StdioServerParameters
 
+    from workshop_shared.config import Settings
+else:
     from workshop_shared.config import Settings
 
 
@@ -122,6 +127,17 @@ def hints_for_mcp_error(
                 "SPLUNK_CLOUD_MCP_TENANT is not set — Splunk Cloud MCP usually requires "
                 "the splunk_tenant header."
             )
+        if server_name == "splunk_o11y":
+            url = extract_mcp_remote_url(params.args)
+            if is_legacy_splunk_cloud_api_gateway_host(url):
+                hints.append(
+                    "SPLUNK_O11Y_GATEWAY_URL uses legacy region-*.api.scs.splunk.com — "
+                    "set it to the direct MCP server (same host as SPLUNK_CLOUD_MCP_URL): "
+                    "https://mcp-<instance>.stg.splunkcloud.com:8089/services/mcp"
+                )
+                cloud_url = settings.splunk_cloud_mcp_url or os.environ.get("SPLUNK_CLOUD_MCP_URL")
+                if cloud_url:
+                    hints.append(f"Try: export SPLUNK_O11Y_GATEWAY_URL={cloud_url.split('?', 1)[0]}")
 
     url = extract_mcp_remote_url(params.args)
     if url:
@@ -175,25 +191,25 @@ async def capture_mcp_remote_stderr(
         proc = await asyncio.create_subprocess_exec(
             params.command,
             *params.args,
-            stdout=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
             env=env,
         )
     except OSError as exc:
         return f"could not run mcp-remote: {exc}"
 
+    stderr_bytes = b""
     try:
         try:
-            _, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(),
+            stderr_bytes = await asyncio.wait_for(
+                proc.stderr.read(),  # type: ignore[union-attr]
                 timeout=timeout_seconds,
             )
+            await asyncio.wait_for(proc.wait(), timeout=2.0)
         except asyncio.TimeoutError:
             proc.kill()
-            try:
+            with contextlib.suppress(asyncio.TimeoutError, ProcessLookupError):
                 await asyncio.wait_for(proc.wait(), timeout=2.0)
-            except asyncio.TimeoutError:
-                pass
             seconds = int(timeout_seconds)
             return (
                 f"mcp-remote did not exit within {seconds}s "

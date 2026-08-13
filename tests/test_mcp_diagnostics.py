@@ -88,6 +88,28 @@ def test_cloud_mcp_hints_flag_missing_tenant() -> None:
     assert any("splunk_tenant header" in h for h in hints)
 
 
+def test_o11y_hints_call_out_legacy_gateway_host() -> None:
+    legacy_url = "https://region-pdx10.api.scs.splunk.com:8089/services/mcp"
+    settings = Settings(
+        splunk_o11y_gateway_url=legacy_url,
+        splunk_o11y_realm="us1",
+        splunk_o11y_api_token="abc123",
+        splunk_cloud_mcp_url="https://mcp-shw-abc.stg.splunkcloud.com:8089/services/mcp",
+    )
+    params = StdioServerParameters(
+        command="npx",
+        args=["-y", "mcp-remote", legacy_url, "--silent"],
+    )
+    hints = hints_for_mcp_error(
+        "Connection closed",
+        server_name="splunk_o11y",
+        settings=settings,
+        params=params,
+    )
+    assert any("legacy region-*.api.scs.splunk.com" in h for h in hints)
+    assert any("export SPLUNK_O11Y_GATEWAY_URL=" in h for h in hints)
+
+
 def test_build_server_context_hints_o11y() -> None:
     settings = Settings(
         splunk_o11y_gateway_url="https://mcp.example:8089/services/mcp",
@@ -103,7 +125,8 @@ def test_build_server_context_hints_o11y() -> None:
 async def test_capture_mcp_remote_stderr_timeout_returns_hint() -> None:
     params = StdioServerParameters(command="npx", args=["-y", "mcp-remote", "https://example.com:8089/services/mcp"])
     fake_proc = AsyncMock()
-    fake_proc.communicate = AsyncMock(return_value=(b"", b""))
+    fake_proc.stderr = AsyncMock()
+    fake_proc.stderr.read = AsyncMock(return_value=b"")
     fake_proc.kill = MagicMock()
     fake_proc.wait = AsyncMock(return_value=0)
 
